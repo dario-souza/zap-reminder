@@ -51,3 +51,63 @@ export const authApi = {
   me: () =>
     apiFetch('/auth/me'),
 };
+
+export const contactsApi = {
+  getAll: () =>
+    apiFetch('/contacts'),
+
+  create: (data: { name: string; phone: string; email?: string }) =>
+    apiFetch('/contacts', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  update: (id: string, data: { name?: string; phone?: string; email?: string }) =>
+    apiFetch(`/contacts/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  delete: (id: string) =>
+    apiFetch(`/contacts/${id}`, {
+      method: 'DELETE',
+    }),
+};
+
+export const messagesApi = {
+  getAll: () =>
+    apiFetch('/messages'),
+
+  create: (data: { content: string; contactId: string; scheduledAt?: string }) =>
+    apiFetch('/messages', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  sendNow: (id: string) =>
+    apiFetch(`/messages/${id}/send`, {
+      method: 'POST',
+    }),
+
+  delete: (id: string) =>
+    apiFetch(`/messages/${id}`, {
+      method: 'DELETE',
+    }),
+
+  checkWhatsAppStatus: () =>
+    apiFetch('/messages/whatsapp/status'),
+
+  sendTestMessage: (phone: string, message: string) =>
+    apiFetch('/messages/test', {
+      method: 'POST',
+      body: JSON.stringify({ phone, message }),
+    }),
+
+  getQRCode: () =>
+    apiFetch('/messages/whatsapp/qrcode'),
+
+  disconnectWhatsApp: () =>
+    apiFetch('/messages/whatsapp/disconnect', {
+      method: 'POST',
+    }),
+};
