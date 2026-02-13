@@ -26,7 +26,7 @@ export function QRCodeModal({ open, onOpenChange, onConnected }: QRCodeModalProp
   const [pairingCode, setPairingCode] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const [message, setMessage] = useState<string | null>(null);
-  const [managerUrl] = useState("http://localhost:8080/manager");
+  const WAHA_URL = "http://localhost:3003";
 
   const fetchQRCode = async () => {
     setIsLoading(true);
@@ -36,21 +36,77 @@ export function QRCodeModal({ open, onOpenChange, onConnected }: QRCodeModalProp
     setMessage(null);
     
     try {
-      console.log('Buscando QR Code...');
-      const data = await messagesApi.getQRCode();
-      console.log('Resposta QR Code:', data);
+      console.log('Buscando QR Code da WAHA...');
       
-      setQrCode(data.qrCode);
-      setStatus(data.status);
-      setPairingCode(data.pairingCode || null);
-      setMessage(data.message || null);
-      setRetryCount(0);
+      // Verifica status da sessão primeiro
+      const sessionRes = await fetch(`${WAHA_URL}/api/sessions/default`, {
+        headers: { 'X-Api-Key': '01c351f5e92b439394e18f2f83107877' }
+      });
       
-      // Se já estiver conectado
-      if (data.status === "open" || data.status === "connected") {
+      if (!sessionRes.ok) {
+        throw new Error('Erro ao verificar sessão');
+      }
+      
+      const session = await sessionRes.json();
+      console.log('Status da sessão:', session);
+      
+      // Se já está conectado
+      if (session.status === 'WORKING') {
         onConnected();
         onOpenChange(false);
+        return;
       }
+      
+      // Se falhou, reinicia
+      if (session.status === 'FAILED') {
+        setMessage('Reiniciando sessão...');
+        await fetch(`${WAHA_URL}/api/sessions/default/restart`, {
+          method: 'POST',
+          headers: { 'X-Api-Key': '01c351f5e92b439394e18f2f83107877' }
+        });
+        await new Promise(resolve => setTimeout(resolve, 5000));
+        fetchQRCode();
+        return;
+      }
+      
+      // Se está parada, inicia
+      if (session.status === 'STOPPED') {
+        setMessage('Iniciando sessão...');
+        await fetch(`${WAHA_URL}/api/sessions/default/start`, {
+          method: 'POST',
+          headers: { 'X-Api-Key': '01c351f5e92b439394e18f2f83107877' }
+        });
+        await new Promise(resolve => setTimeout(resolve, 3000));
+      }
+      
+      // Tenta obter QR Code
+      const qrRes = await fetch(`${WAHA_URL}/api/default/auth/qr`, {
+        headers: { 
+          'X-Api-Key': '01c351f5e92b439394e18f2f83107877',
+          'Accept': 'application/json'
+        }
+      });
+      
+      if (qrRes.ok) {
+        const data = await qrRes.json();
+        console.log('QR Code obtido:', data);
+        
+        if (data.data) {
+          setQrCode(data.data);
+          setStatus('SCAN_QR_CODE');
+          setMessage(null);
+        } else {
+          setMessage('Aguardando QR Code...');
+        }
+      } else if (qrRes.status === 422) {
+        // Sessão ainda não está pronta
+        setMessage('Aguardando sessão ficar pronta...');
+        setTimeout(fetchQRCode, 3000);
+      } else {
+        throw new Error(`Erro ${qrRes.status}: ${await qrRes.text()}`);
+      }
+      
+      setRetryCount(0);
     } catch (err: any) {
       console.error('Erro ao obter QR Code:', err);
       setError(err.message || "Erro ao obter QR Code");
@@ -106,8 +162,8 @@ export function QRCodeModal({ open, onOpenChange, onConnected }: QRCodeModalProp
     }
   };
 
-  const openManager = () => {
-    window.open(managerUrl, '_blank');
+  const openDashboard = () => {
+    window.open(`${WAHA_URL}/dashboard`, '_blank');
   };
 
   return (
@@ -234,18 +290,18 @@ export function QRCodeModal({ open, onOpenChange, onConnected }: QRCodeModalProp
                   
                   <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                     <p className="text-sm text-yellow-700 mb-3">
-                      <strong>Alternativa:</strong> O QR Code pode ser obtido diretamente pelo Manager do Evolution
+                      <strong>Alternativa:</strong> Acesse o Dashboard da WAHA API
                     </p>
                     <Button 
-                      onClick={openManager}
+                      onClick={openDashboard}
                       variant="outline"
                       className="w-full"
                     >
                       <ExternalLink className="w-4 h-4 mr-2" />
-                      Abrir Evolution Manager
+                      Abrir WAHA Dashboard
                     </Button>
                     <p className="text-xs text-gray-400 mt-2">
-                      Clique em &quot;Get QR Code&quot; no Manager
+                      Login: admin | Senha: zapreminder123
                     </p>
                   </div>
                 </div>

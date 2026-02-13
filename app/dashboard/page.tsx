@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { authApi, contactsApi, messagesApi } from "@/lib/api";
-import { MessageCircle, User, LogOut, Plus, Phone, Mail, Trash2, AlertCircle, CheckCircle2, Send, Clock, Calendar, CheckCheck, AlertTriangle, Smartphone, RefreshCw } from "lucide-react";
+import { MessageCircle, User, LogOut, Plus, Phone, Mail, Trash2, AlertCircle, CheckCircle2, Send, Clock, Calendar, CheckCheck, AlertTriangle, Smartphone, RefreshCw, Link2, Unlink } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -381,37 +381,47 @@ export default function DashboardPage() {
               <Smartphone className="w-5 h-5 text-green-600" />
               <CardTitle className="text-lg">Status do WhatsApp</CardTitle>
             </div>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={checkWhatsappConnection}
-              disabled={isCheckingWhatsapp}
-            >
-              <RefreshCw className={`w-4 h-4 mr-2 ${isCheckingWhatsapp ? 'animate-spin' : ''}`} />
-              Verificar
-            </Button>
+            <div className="flex items-center gap-2">
+              {whatsappStatus?.connected && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => messagesApi.disconnectWhatsApp().then(() => checkWhatsappConnection())}
+                  className="text-red-600 border-red-300 hover:bg-red-50"
+                >
+                  <Unlink className="w-4 h-4 mr-2" />
+                  Desconectar
+                </Button>
+              )}
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={checkWhatsappConnection}
+                disabled={isCheckingWhatsapp}
+              >
+                <RefreshCw className={`w-4 h-4 mr-2 ${isCheckingWhatsapp ? 'animate-spin' : ''}`} />
+                Verificar
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             {!whatsappStatus ? (
               <p className="text-gray-500">Clique em "Verificar" para verificar a conexão...</p>
-            ) : whatsappStatus.configured === false ? (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                <p className="text-yellow-800 font-medium mb-2">⚠️ Evolution API não configurada</p>
-                <p className="text-yellow-700 text-sm mb-3">
-                  Para enviar mensagens reais via WhatsApp, você precisa configurar a Evolution API.
-                </p>
-                <a 
-                  href="https://doc.evolution-api.com/" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:underline text-sm"
-                >
-                  📖 Ver documentação da Evolution API
-                </a>
-              </div>
             ) : whatsappStatus.connected ? (
               <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                <p className="text-green-800 font-medium mb-2">✅ WhatsApp conectado!</p>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                    <CheckCircle2 className="w-6 h-6 text-green-600" />
+                  </div>
+                  <div>
+                    <p className="text-green-800 font-medium">✅ WhatsApp conectado!</p>
+                    {whatsappStatus.profile?.pushName && (
+                      <p className="text-green-700 text-sm">
+                        {whatsappStatus.profile.pushName} ({whatsappStatus.profile.id?.split('@')[0]})
+                      </p>
+                    )}
+                  </div>
+                </div>
                 <p className="text-green-700 text-sm">
                   Sua integração está funcionando. Você pode enviar mensagens para seus contatos.
                 </p>
@@ -449,18 +459,31 @@ export default function DashboardPage() {
             ) : (
               <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                 <p className="text-red-800 font-medium mb-2">❌ WhatsApp desconectado</p>
-                <p className="text-red-700 text-sm mb-3">
-                  A Evolution API está configurada, mas o WhatsApp não está conectado.
+                <p className="text-red-700 text-sm mb-4">
+                  Para enviar mensagens via WhatsApp, você precisa conectar sua conta.
                 </p>
-                <ol className="text-red-700 text-sm list-decimal list-inside space-y-1">
-                  <li>Acesse o Manager da Evolution API</li>
-                  <li>Verifique se a instância está criada</li>
-                  <li>Escaneie o QR Code com seu WhatsApp</li>
-                </ol>
+                <Button 
+                  onClick={() => setIsQRCodeModalOpen(true)}
+                  className="bg-green-500 hover:bg-green-600 w-full sm:w-auto"
+                >
+                  <Link2 className="w-4 h-4 mr-2" />
+                  Conectar WhatsApp
+                </Button>
               </div>
             )}
           </CardContent>
         </Card>
+
+        {/* Modal de QR Code */}
+        <QRCodeModal 
+          open={isQRCodeModalOpen} 
+          onOpenChange={setIsQRCodeModalOpen}
+          onConnected={() => {
+            checkWhatsappConnection();
+            setSuccess("WhatsApp conectado com sucesso!");
+            setTimeout(() => setSuccess(null), 3000);
+          }}
+        />
 
         <Tabs defaultValue="messages" className="space-y-6">
           <TabsList>
