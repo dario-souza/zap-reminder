@@ -77,6 +77,7 @@ export default function DashboardPage() {
   const [testMessage, setTestMessage] = useState("");
   const [isSendingTest, setIsSendingTest] = useState(false);
   const [isQRCodeModalOpen, setIsQRCodeModalOpen] = useState(false);
+  const [cronStatus, setCronStatus] = useState<any>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -93,6 +94,7 @@ export default function DashboardPage() {
 
     loadData();
     checkWhatsappConnection();
+    checkCronStatus();
   }, [router]);
 
   const loadData = async () => {
@@ -120,6 +122,15 @@ export default function DashboardPage() {
       setWhatsappStatus({ connected: false, configured: false });
     } finally {
       setIsCheckingWhatsapp(false);
+    }
+  };
+
+  const checkCronStatus = async () => {
+    try {
+      const status = await messagesApi.getCronStatus();
+      setCronStatus(status);
+    } catch (error: any) {
+      console.error("Erro ao verificar status do cron:", error);
     }
   };
 
@@ -471,6 +482,82 @@ export default function DashboardPage() {
                 </Button>
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        {/* Status do Cron Job */}
+        <Card className="mb-8">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Clock className="w-5 h-5 text-blue-600" />
+              <CardTitle className="text-lg">Agendamento Automático</CardTitle>
+            </div>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={checkCronStatus}
+            >
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Atualizar
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {!cronStatus ? (
+              <p className="text-gray-500">Carregando status...</p>
+            ) : cronStatus.isRunning ? (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                    <CheckCircle2 className="w-6 h-6 text-green-600" />
+                  </div>
+                  <div>
+                    <p className="text-green-800 font-medium">✅ Cron Job Ativo</p>
+                    <p className="text-green-700 text-sm">
+                      Verificando mensagens agendadas a cada minuto
+                    </p>
+                  </div>
+                </div>
+                <p className="text-green-700 text-sm">
+                  O sistema enviará automaticamente as mensagens agendadas quando chegar o horário.
+                </p>
+                <div className="mt-3 text-sm text-green-600">
+                  <span className="font-medium">Próxima verificação:</span> {cronStatus.nextRun}
+                </div>
+              </div>
+            ) : (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">
+                    <AlertCircle className="w-6 h-6 text-yellow-600" />
+                  </div>
+                  <div>
+                    <p className="text-yellow-800 font-medium">⚠️ Cron Job Parado</p>
+                    <p className="text-yellow-700 text-sm">
+                      Mensagens agendadas não serão enviadas automaticamente
+                    </p>
+                  </div>
+                </div>
+                <p className="text-yellow-700 text-sm">
+                  O sistema não está verificando mensagens agendadas. Mensagens criadas não serão enviadas automaticamente.
+                </p>
+              </div>
+            )}
+            
+            {/* Estatísticas de mensagens agendadas */}
+            <div className="mt-4 grid grid-cols-2 gap-4">
+              <div className="bg-blue-50 rounded-lg p-3 text-center">
+                <p className="text-2xl font-bold text-blue-600">
+                  {messages.filter(m => m.status === 'SCHEDULED').length}
+                </p>
+                <p className="text-sm text-blue-700">Mensagens Agendadas</p>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-3 text-center">
+                <p className="text-2xl font-bold text-gray-600">
+                  {messages.filter(m => m.status === 'SENT').length}
+                </p>
+                <p className="text-sm text-gray-700">Mensagens Enviadas</p>
+              </div>
+            </div>
           </CardContent>
         </Card>
 

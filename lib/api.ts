@@ -110,4 +110,13 @@ export const messagesApi = {
     apiFetch('/messages/whatsapp/disconnect', {
       method: 'POST',
     }),
+
+  getCronStatus: () =>
+    apiFetch('/messages/cron/status'),
+
+  toggleCron: (action: 'start' | 'stop') =>
+    apiFetch('/messages/cron/toggle', {
+      method: 'POST',
+      body: JSON.stringify({ action }),
+    }),
 };
