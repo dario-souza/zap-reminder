@@ -45,9 +45,11 @@ interface Contact {
 interface Message {
   id: string;
   content: string;
-  status: 'PENDING' | 'SENT' | 'FAILED' | 'SCHEDULED';
+  status: 'PENDING' | 'SENT' | 'DELIVERED' | 'READ' | 'FAILED' | 'SCHEDULED';
   scheduledAt?: string;
   sentAt?: string;
+  deliveredAt?: string;
+  readAt?: string;
   createdAt: string;
   contact: {
     name: string;
@@ -275,12 +277,14 @@ export default function DashboardPage() {
     const styles = {
       PENDING: { bg: 'bg-yellow-100', text: 'text-yellow-700', icon: Clock, label: 'Pendente' },
       SENT: { bg: 'bg-green-100', text: 'text-green-700', icon: CheckCheck, label: 'Enviada' },
+      DELIVERED: { bg: 'bg-blue-100', text: 'text-blue-700', icon: CheckCheck, label: 'Entregue' },
+      READ: { bg: 'bg-purple-100', text: 'text-purple-700', icon: CheckCheck, label: 'Lida' },
       FAILED: { bg: 'bg-red-100', text: 'text-red-700', icon: AlertTriangle, label: 'Falhou' },
       SCHEDULED: { bg: 'bg-blue-100', text: 'text-blue-700', icon: Calendar, label: 'Agendada' },
     };
     const style = styles[status as keyof typeof styles] || styles.PENDING;
     const Icon = style.icon;
-    
+
     return (
       <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${style.bg} ${style.text}`}>
         <Icon className="w-3 h-3" />
@@ -289,9 +293,11 @@ export default function DashboardPage() {
     );
   };
 
-  const sentMessages = messages.filter(m => m.status === 'SENT');
+  const sentMessages = messages.filter(m => ['SENT', 'DELIVERED', 'READ'].includes(m.status));
   const scheduledMessages = messages.filter(m => m.status === 'SCHEDULED');
   const pendingMessages = messages.filter(m => m.status === 'PENDING');
+  const deliveredMessages = messages.filter(m => m.status === 'DELIVERED');
+  const readMessages = messages.filter(m => m.status === 'READ');
 
   if (loading) {
     return (
@@ -551,11 +557,23 @@ export default function DashboardPage() {
                 </p>
                 <p className="text-sm text-blue-700">Mensagens Agendadas</p>
               </div>
-              <div className="bg-gray-50 rounded-lg p-3 text-center">
-                <p className="text-2xl font-bold text-gray-600">
-                  {messages.filter(m => m.status === 'SENT').length}
+              <div className="bg-green-50 rounded-lg p-3 text-center">
+                <p className="text-2xl font-bold text-green-600">
+                  {sentMessages.length}
                 </p>
-                <p className="text-sm text-gray-700">Mensagens Enviadas</p>
+                <p className="text-sm text-green-700">Mensagens Enviadas</p>
+              </div>
+              <div className="bg-blue-50 rounded-lg p-3 text-center">
+                <p className="text-2xl font-bold text-blue-600">
+                  {deliveredMessages.length}
+                </p>
+                <p className="text-sm text-blue-700">Mensagens Entregues</p>
+              </div>
+              <div className="bg-purple-50 rounded-lg p-3 text-center">
+                <p className="text-2xl font-bold text-purple-600">
+                  {readMessages.length}
+                </p>
+                <p className="text-sm text-purple-700">Mensagens Lidas</p>
               </div>
             </div>
           </CardContent>
@@ -723,6 +741,18 @@ export default function DashboardPage() {
                                 <span className="flex items-center gap-1">
                                   <CheckCheck className="w-3 h-3" />
                                   Enviado: {new Date(message.sentAt).toLocaleString('pt-BR')}
+                                </span>
+                              )}
+                              {message.deliveredAt && (
+                                <span className="flex items-center gap-1">
+                                  <CheckCheck className="w-3 h-3" />
+                                  Entregue: {new Date(message.deliveredAt).toLocaleString('pt-BR')}
+                                </span>
+                              )}
+                              {message.readAt && (
+                                <span className="flex items-center gap-1">
+                                  <CheckCheck className="w-3 h-3" />
+                                  Lida: {new Date(message.readAt).toLocaleString('pt-BR')}
                                 </span>
                               )}
                             </div>
