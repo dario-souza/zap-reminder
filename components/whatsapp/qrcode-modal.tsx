@@ -26,7 +26,7 @@ export function QRCodeModal({ open, onOpenChange, onConnected }: QRCodeModalProp
   const [pairingCode, setPairingCode] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const [message, setMessage] = useState<string | null>(null);
-  const WAHA_URL = "http://localhost:3003";
+  const WAHA_DASHBOARD_URL = "http://localhost:3003/dashboard";
 
   const fetchQRCode = async () => {
     setIsLoading(true);
@@ -36,80 +36,41 @@ export function QRCodeModal({ open, onOpenChange, onConnected }: QRCodeModalProp
     setMessage(null);
     
     try {
-      console.log('Buscando QR Code da WAHA...');
+      console.log('Iniciando conexão WhatsApp...');
       
-      // Verifica status da sessão primeiro
-      const sessionRes = await fetch(`${WAHA_URL}/api/sessions/default`, {
-        headers: { 'X-Api-Key': '01c351f5e92b439394e18f2f83107877' }
-      });
+      // Usa o backend para iniciar a sessão
+      setMessage('Iniciando sessão...');
+      const result = await messagesApi.startWhatsAppSession();
+      console.log('Resultado:', result);
       
-      if (!sessionRes.ok) {
-        throw new Error('Erro ao verificar sessão');
-      }
-      
-      const session = await sessionRes.json();
-      console.log('Status da sessão:', session);
-      
-      // Se já está conectado
-      if (session.status === 'WORKING') {
+      if (result.session?.status === 'WORKING') {
         onConnected();
         onOpenChange(false);
         return;
       }
       
-      // Se falhou, reinicia
-      if (session.status === 'FAILED') {
-        setMessage('Reiniciando sessão...');
-        await fetch(`${WAHA_URL}/api/sessions/default/restart`, {
-          method: 'POST',
-          headers: { 'X-Api-Key': '01c351f5e92b439394e18f2f83107877' }
-        });
-        await new Promise(resolve => setTimeout(resolve, 5000));
-        fetchQRCode();
+      if (result.session?.status === 'SCAN_QR_CODE') {
+        setMessage('QR Code disponível no Dashboard!');
+        setStatus('SCAN_QR_CODE');
+        // Tenta obter o QR Code via API
+        try {
+          const qrData = await messagesApi.getQRCode();
+          if (qrData.qrCode) {
+            setQrCode(qrData.qrCode);
+            setMessage(null);
+          }
+        } catch (qrError) {
+          console.log('QR Code não disponível via API, use o Dashboard');
+        }
         return;
       }
       
-      // Se está parada, inicia
-      if (session.status === 'STOPPED') {
-        setMessage('Iniciando sessão...');
-        await fetch(`${WAHA_URL}/api/sessions/default/start`, {
-          method: 'POST',
-          headers: { 'X-Api-Key': '01c351f5e92b439394e18f2f83107877' }
-        });
-        await new Promise(resolve => setTimeout(resolve, 3000));
-      }
+      // Qualquer outro status, mostra mensagem
+      setMessage(result.message || 'Aguardando conexão...');
       
-      // Tenta obter QR Code
-      const qrRes = await fetch(`${WAHA_URL}/api/default/auth/qr`, {
-        headers: { 
-          'X-Api-Key': '01c351f5e92b439394e18f2f83107877',
-          'Accept': 'application/json'
-        }
-      });
-      
-      if (qrRes.ok) {
-        const data = await qrRes.json();
-        console.log('QR Code obtido:', data);
-        
-        if (data.data) {
-          setQrCode(data.data);
-          setStatus('SCAN_QR_CODE');
-          setMessage(null);
-        } else {
-          setMessage('Aguardando QR Code...');
-        }
-      } else if (qrRes.status === 422) {
-        // Sessão ainda não está pronta
-        setMessage('Aguardando sessão ficar pronta...');
-        setTimeout(fetchQRCode, 3000);
-      } else {
-        throw new Error(`Erro ${qrRes.status}: ${await qrRes.text()}`);
-      }
-      
-      setRetryCount(0);
     } catch (err: any) {
-      console.error('Erro ao obter QR Code:', err);
-      setError(err.message || "Erro ao obter QR Code");
+      console.error('Erro ao iniciar sessão:', err);
+      setError(err.message || "Erro ao conectar WhatsApp");
     } finally {
       setIsLoading(false);
     }
@@ -163,7 +124,7 @@ export function QRCodeModal({ open, onOpenChange, onConnected }: QRCodeModalProp
   };
 
   const openDashboard = () => {
-    window.open(`${WAHA_URL}/dashboard`, '_blank');
+    window.open(`${WAHA_DASHBOARD_URL}`, '_blank');
   };
 
   return (

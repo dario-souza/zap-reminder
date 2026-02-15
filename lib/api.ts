@@ -111,6 +111,11 @@ export const messagesApi = {
       method: 'POST',
     }),
 
+  startWhatsAppSession: () =>
+    apiFetch('/messages/whatsapp/start', {
+      method: 'POST',
+    }),
+
   getCronStatus: () =>
     apiFetch('/messages/cron/status'),
 
