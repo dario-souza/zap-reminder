@@ -95,7 +95,7 @@ export const messagesApi = {
     }),
 
   checkWhatsAppStatus: () =>
-    apiFetch('/messages/whatsapp/status'),
+    apiFetch('/whatsapp/session/status'),
 
   sendTestMessage: (phone: string, message: string) =>
     apiFetch('/messages/test', {
@@ -104,15 +104,15 @@ export const messagesApi = {
     }),
 
   getQRCode: () =>
-    apiFetch('/messages/whatsapp/qrcode'),
+    apiFetch('/whatsapp/session/qr'),
 
   disconnectWhatsApp: () =>
-    apiFetch('/messages/whatsapp/disconnect', {
+    apiFetch('/whatsapp/session/disconnect', {
       method: 'POST',
     }),
 
   startWhatsAppSession: () =>
-    apiFetch('/messages/whatsapp/start', {
+    apiFetch('/whatsapp/session/start', {
       method: 'POST',
     }),
 
