@@ -72,6 +72,11 @@ export const contactsApi = {
     apiFetch(`/contacts/${id}`, {
       method: 'DELETE',
     }),
+
+  deleteAll: () =>
+    apiFetch('/contacts', {
+      method: 'DELETE',
+    }),
 };
 
 export const messagesApi = {
@@ -91,6 +96,11 @@ export const messagesApi = {
 
   delete: (id: string) =>
     apiFetch(`/messages/${id}`, {
+      method: 'DELETE',
+    }),
+
+  deleteAll: () =>
+    apiFetch('/messages', {
       method: 'DELETE',
     }),
 
