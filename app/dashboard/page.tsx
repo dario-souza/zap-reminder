@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { authApi, contactsApi, messagesApi } from "@/lib/api";
+import { authApi, contactsApi, messagesApi, templatesApi } from "@/lib/api";
 import {
   MessageCircle,
   User,
@@ -38,6 +38,8 @@ import {
   ContactsList,
   MessagesList,
   StatsCards,
+  TemplateForm,
+  TemplatesList,
 } from "./components";
 
 interface User {
@@ -67,11 +69,20 @@ interface Message {
   };
 }
 
+interface Template {
+  id: string;
+  name: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -79,13 +90,15 @@ export default function DashboardPage() {
   // Modais
   const [isAddingContact, setIsAddingContact] = useState(false);
   const [isAddingMessage, setIsAddingMessage] = useState(false);
+  const [isAddingTemplate, setIsAddingTemplate] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
   const [isQRCodeModalOpen, setIsQRCodeModalOpen] = useState(false);
 
   // Estados de confirmação
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
-  const [deleteType, setDeleteType] = useState<"contact" | "message" | null>(null);
+  const [deleteType, setDeleteType] = useState<"contact" | "message" | "template" | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [deleteAllType, setDeleteAllType] = useState<"contacts" | "messages" | null>(null);
+  const [deleteAllType, setDeleteAllType] = useState<"contacts" | "messages" | "templates" | null>(null);
   const [isDeletingAll, setIsDeletingAll] = useState(false);
 
   // WhatsApp
@@ -117,12 +130,14 @@ export default function DashboardPage() {
 
   const loadData = async () => {
     try {
-      const [contactsData, messagesData] = await Promise.all([
+      const [contactsData, messagesData, templatesData] = await Promise.all([
         contactsApi.getAll(),
         messagesApi.getAll(),
+        templatesApi.getAll(),
       ]);
       setContacts(contactsData);
       setMessages(messagesData);
+      setTemplates(templatesData);
     } catch (error: any) {
       console.error("Erro ao carregar dados:", error);
     } finally {
@@ -203,15 +218,18 @@ export default function DashboardPage() {
       if (deleteType === "contact") {
         await contactsApi.delete(itemToDelete);
         showSuccess("Contato excluído com sucesso!");
-      } else {
+      } else if (deleteType === "message") {
         await messagesApi.delete(itemToDelete);
         showSuccess("Mensagem excluída com sucesso!");
+      } else if (deleteType === "template") {
+        await templatesApi.delete(itemToDelete);
+        showSuccess("Template excluído com sucesso!");
       }
       setItemToDelete(null);
       setDeleteType(null);
       loadData();
     } catch (err: any) {
-      showError(err.message || `Erro ao excluir ${deleteType === "contact" ? "contato" : "mensagem"}`);
+      showError(err.message || `Erro ao excluir ${deleteType === "contact" ? "contato" : deleteType === "message" ? "mensagem" : "template"}`);
     } finally {
       setIsDeleting(false);
     }
@@ -225,14 +243,17 @@ export default function DashboardPage() {
       if (deleteAllType === "contacts") {
         await contactsApi.deleteAll();
         showSuccess("Todos os contatos foram excluídos com sucesso!");
-      } else {
+      } else if (deleteAllType === "messages") {
         await messagesApi.deleteAll();
         showSuccess("Todas as mensagens foram excluídas com sucesso!");
+      } else if (deleteAllType === "templates") {
+        await templatesApi.deleteAll();
+        showSuccess("Todos os templates foram excluídos com sucesso!");
       }
       setDeleteAllType(null);
       loadData();
     } catch (err: any) {
-      showError(err.message || `Erro ao excluir ${deleteAllType === "contacts" ? "contatos" : "mensagens"}`);
+      showError(err.message || `Erro ao excluir ${deleteAllType === "contacts" ? "contatos" : deleteAllType === "messages" ? "mensagens" : "templates"}`);
     } finally {
       setIsDeletingAll(false);
     }
@@ -494,6 +515,7 @@ export default function DashboardPage() {
           <TabsList>
             <TabsTrigger value="messages">Mensagens</TabsTrigger>
             <TabsTrigger value="contacts">Contatos</TabsTrigger>
+            <TabsTrigger value="templates">Templates</TabsTrigger>
           </TabsList>
 
           {/* Messages Tab */}
@@ -594,6 +616,71 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Templates Tab */}
+          <TabsContent value="templates" className="space-y-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Meus Templates</CardTitle>
+                <div className="flex gap-2">
+                  {templates.length > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setDeleteAllType("templates")}
+                      className="text-red-600 border-red-300 hover:bg-red-50"
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Deletar Todos
+                    </Button>
+                  )}
+                  <Dialog open={isAddingTemplate} onOpenChange={(open) => {
+                    setIsAddingTemplate(open);
+                    if (!open) setEditingTemplate(null);
+                  }}>
+                    <DialogTrigger asChild>
+                      <Button size="sm" className="bg-green-500 hover:bg-green-600">
+                        <Plus className="w-4 h-4 mr-2" />
+                        Novo Template
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>{editingTemplate ? "Editar Template" : "Criar Novo Template"}</DialogTitle>
+                        <DialogDescription>
+                          {editingTemplate ? "Altere os dados do template abaixo" : "Crie um modelo de mensagem para reuse"}
+                        </DialogDescription>
+                      </DialogHeader>
+                      <TemplateForm
+                        template={editingTemplate}
+                        onSuccess={(msg) => {
+                          showSuccess(msg);
+                          setIsAddingTemplate(false);
+                          setEditingTemplate(null);
+                          loadData();
+                        }}
+                        onError={showError}
+                        onCancel={() => {
+                          setIsAddingTemplate(false);
+                          setEditingTemplate(null);
+                        }}
+                      />
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <TemplatesList
+                  templates={templates}
+                  onDelete={(id) => openDeleteModal(id, "template")}
+                  onEdit={(template) => {
+                    setEditingTemplate(template);
+                    setIsAddingTemplate(true);
+                  }}
+                />
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
 
         {/* Delete Item Modal */}
@@ -601,7 +688,7 @@ export default function DashboardPage() {
           open={!!itemToDelete}
           onOpenChange={(open) => !open && setItemToDelete(null)}
           title="Confirmar Exclusão"
-          description={`Tem certeza que deseja excluir este ${deleteType === "contact" ? "contato" : "mensagem"}? Esta ação não pode ser desfeita.`}
+          description={`Tem certeza que deseja excluir este ${deleteType === "contact" ? "contato" : deleteType === "message" ? "mensagem" : "template"}? Esta ação não pode ser desfeita.`}
           onConfirm={handleDelete}
           isLoading={isDeleting}
           confirmText="Excluir"
@@ -611,8 +698,8 @@ export default function DashboardPage() {
         <ConfirmDialog
           open={!!deleteAllType}
           onOpenChange={(open) => !open && setDeleteAllType(null)}
-          title={`⚠️ Excluir Todas as ${deleteAllType === "contacts" ? "Contatos" : "Mensagens"}`}
-          description={`ATENÇÃO: Esta ação excluirá permanentemente todos os seus ${deleteAllType === "contacts" ? contacts.length : messages.length} ${deleteAllType === "contacts" ? "contatos" : "mensagens"}. Esta ação não pode ser desfeita.`}
+          title={`⚠️ Excluir Todos os ${deleteAllType === "contacts" ? "Contatos" : deleteAllType === "messages" ? "Mensagens" : "Templates"}`}
+          description={`ATENÇÃO: Esta ação excluirá permanentemente todos os seus ${deleteAllType === "contacts" ? contacts.length : deleteAllType === "messages" ? messages.length : templates.length} ${deleteAllType === "contacts" ? "contatos" : deleteAllType === "messages" ? "mensagens" : "templates"}. Esta ação não pode ser desfeita.`}
           onConfirm={handleDeleteAll}
           isLoading={isDeletingAll}
           confirmText="Excluir Todos"

@@ -135,3 +135,30 @@ export const messagesApi = {
       body: JSON.stringify({ action }),
     }),
 };
+
+export const templatesApi = {
+  getAll: () =>
+    apiFetch('/templates'),
+
+  create: (data: { name: string; content: string }) =>
+    apiFetch('/templates', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  update: (id: string, data: { name?: string; content?: string }) =>
+    apiFetch(`/templates/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  delete: (id: string) =>
+    apiFetch(`/templates/${id}`, {
+      method: 'DELETE',
+    }),
+
+  deleteAll: () =>
+    apiFetch('/templates', {
+      method: 'DELETE',
+    }),
+};

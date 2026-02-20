@@ -4,3 +4,5 @@ export { MessageForm } from "./message-form";
 export { ContactsList } from "./contacts-list";
 export { MessagesList } from "./messages-list";
 export { StatsCards } from "./stats-cards";
+export { TemplateForm } from "./template-form";
+export { TemplatesList } from "./templates-list";
