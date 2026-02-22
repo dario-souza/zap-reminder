@@ -89,6 +89,18 @@ export const messagesApi = {
       body: JSON.stringify(data),
     }),
 
+  createBulk: (data: {
+    content: string;
+    contactIds: string[];
+    scheduledAt?: string;
+    sendNow?: boolean;
+    recurrenceType?: 'NONE' | 'MONTHLY';
+  }) =>
+    apiFetch('/messages/bulk', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
   sendNow: (id: string) =>
     apiFetch(`/messages/${id}/send`, {
       method: 'POST',

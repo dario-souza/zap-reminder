@@ -63,6 +63,8 @@ interface Message {
   sentAt?: string;
   deliveredAt?: string;
   readAt?: string;
+  recurrenceType?: "NONE" | "MONTHLY";
+  contactIds?: string[];
   contact: {
     name: string;
     phone: string;
@@ -82,6 +84,7 @@ export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
+  const scheduledMessages = messages.filter((m) => m.status === "SCHEDULED");
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -271,7 +274,6 @@ export default function DashboardPage() {
 
   // Stats
   const sentMessages = messages.filter((m) => ["SENT", "DELIVERED", "READ"].includes(m.status));
-  const scheduledMessages = messages.filter((m) => m.status === "SCHEDULED");
   const deliveredMessages = messages.filter((m) => m.status === "DELIVERED");
   const readMessages = messages.filter((m) => m.status === "READ");
 
@@ -514,6 +516,7 @@ export default function DashboardPage() {
         <Tabs defaultValue="messages" className="space-y-6">
           <TabsList>
             <TabsTrigger value="messages">Mensagens</TabsTrigger>
+            <TabsTrigger value="scheduled">Agendamentos</TabsTrigger>
             <TabsTrigger value="contacts">Contatos</TabsTrigger>
             <TabsTrigger value="templates">Templates</TabsTrigger>
           </TabsList>
@@ -566,6 +569,35 @@ export default function DashboardPage() {
                   onDelete={(id) => openDeleteModal(id, "message")}
                   onSendNow={handleSendNow}
                 />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Scheduled Tab */}
+          <TabsContent value="scheduled" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="w-5 h-5" />
+                  Mensagens Agendadas
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {scheduledMessages.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <Clock className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p>Nenhuma mensagem agendada</p>
+                    <p className="text-sm mt-1">
+                      Agende uma mensagem na aba &quot;Mensagens&quot;
+                    </p>
+                  </div>
+                ) : (
+                  <MessagesList
+                    messages={scheduledMessages}
+                    onDelete={(id) => openDeleteModal(id, "message")}
+                    onSendNow={handleSendNow}
+                  />
+                )}
               </CardContent>
             </Card>
           </TabsContent>
