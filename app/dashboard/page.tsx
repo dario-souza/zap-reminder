@@ -205,7 +205,7 @@ export default function DashboardPage() {
     }
   };
 
-  const openDeleteModal = (id: string, type: "contact" | "message") => {
+  const openDeleteModal = (id: string, type: "contact" | "message" | "template") => {
     setItemToDelete(id);
     setDeleteType(type);
   };
