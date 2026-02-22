@@ -646,7 +646,7 @@ export default function DashboardPage() {
                 </Dialog>
 
                 <MessagesList
-                  messages={messages.filter((m) => m.isReminder === true || m.reminderDays !== undefined)}
+                  messages={messages.filter((m) => m.isReminder === true)}
                   onDelete={(id) => openDeleteModal(id, "message")}
                   onSendNow={handleSendNow}
                 />
