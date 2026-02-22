@@ -10,6 +10,7 @@ import {
   Send,
   Clock,
   AlertTriangle,
+  Repeat,
 } from "lucide-react";
 
 interface Message {
@@ -20,6 +21,7 @@ interface Message {
   sentAt?: string;
   deliveredAt?: string;
   readAt?: string;
+  recurrenceType?: "NONE" | "MONTHLY";
   contact: {
     name: string;
     phone: string;
@@ -75,6 +77,12 @@ export function MessagesList({ messages, onDelete, onSendNow }: MessagesListProp
               <div className="flex items-center gap-3 mb-2">
                 <span className="font-medium">{message.contact.name}</span>
                 <StatusBadge status={message.status} />
+                {message.status === "SCHEDULED" && message.recurrenceType === "MONTHLY" && (
+                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700">
+                    <Repeat className="w-3 h-3" />
+                    Mensal
+                  </span>
+                )}
               </div>
               <p className="text-gray-700 mb-2">{message.content}</p>
               <div className="flex items-center gap-4 text-xs text-gray-500">
