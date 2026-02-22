@@ -90,7 +90,7 @@ export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
-  const scheduledMessages = messages.filter((m) => m.status === "SCHEDULED");
+  const scheduledMessages = messages.filter((m) => m.status === "SCHEDULED" && m.isReminder !== true);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -646,7 +646,7 @@ export default function DashboardPage() {
                 </Dialog>
 
                 <MessagesList
-                  messages={messages.filter((m) => m.isReminder === true)}
+                  messages={messages.filter((m) => m.isReminder === true || m.reminderDays !== undefined)}
                   onDelete={(id) => openDeleteModal(id, "message")}
                   onSendNow={handleSendNow}
                 />
