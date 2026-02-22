@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { User, Phone, Mail, Trash2 } from "lucide-react";
+import { User, Phone, Mail, Trash2, Pencil } from "lucide-react";
 
 interface Contact {
   id: string;
@@ -13,9 +13,10 @@ interface Contact {
 interface ContactsListProps {
   contacts: Contact[];
   onDelete: (id: string) => void;
+  onEdit: (contact: Contact) => void;
 }
 
-export function ContactsList({ contacts, onDelete }: ContactsListProps) {
+export function ContactsList({ contacts, onDelete, onEdit }: ContactsListProps) {
   if (contacts.length === 0) {
     return (
       <div className="text-center py-8 text-gray-500">
@@ -53,14 +54,24 @@ export function ContactsList({ contacts, onDelete }: ContactsListProps) {
               </div>
             </div>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onDelete(contact.id)}
-            className="text-red-500 hover:text-red-700 hover:bg-red-50"
-          >
-            <Trash2 className="w-4 h-4" />
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onEdit(contact)}
+              className="text-blue-500 hover:text-blue-700 hover:bg-blue-50"
+            >
+              <Pencil className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onDelete(contact.id)}
+              className="text-red-500 hover:text-red-700 hover:bg-red-50"
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
       ))}
     </div>

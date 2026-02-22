@@ -97,6 +97,7 @@ export default function DashboardPage() {
 
   // Modais
   const [isAddingContact, setIsAddingContact] = useState(false);
+  const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [isAddingMessage, setIsAddingMessage] = useState(false);
   const [isAddingTemplate, setIsAddingTemplate] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
@@ -669,7 +670,10 @@ export default function DashboardPage() {
                       Deletar Todos
                     </Button>
                   )}
-                  <Dialog open={isAddingContact} onOpenChange={setIsAddingContact}>
+                  <Dialog open={isAddingContact} onOpenChange={(open) => {
+                    setIsAddingContact(open);
+                    if (!open) setEditingContact(null);
+                  }}>
                     <DialogTrigger asChild>
                       <Button size="sm" className="bg-green-500 hover:bg-green-600">
                         <Plus className="w-4 h-4 mr-2" />
@@ -678,13 +682,15 @@ export default function DashboardPage() {
                     </DialogTrigger>
                     <DialogContent>
                       <DialogHeader>
-                        <DialogTitle>Adicionar Novo Contato</DialogTitle>
+                        <DialogTitle>{editingContact ? "Editar Contato" : "Adicionar Novo Contato"}</DialogTitle>
                         <DialogDescription>Preencha os dados do contato abaixo</DialogDescription>
                       </DialogHeader>
                       <ContactForm
+                        contact={editingContact}
                         onSuccess={() => {
-                          showSuccess("Contato adicionado com sucesso!");
+                          showSuccess(editingContact ? "Contato atualizado com sucesso!" : "Contato adicionado com sucesso!");
                           setIsAddingContact(false);
+                          setEditingContact(null);
                           loadData();
                         }}
                         onError={showError}
@@ -740,7 +746,14 @@ export default function DashboardPage() {
                     }}
                   />
                 </div>
-                <ContactsList contacts={contacts} onDelete={(id) => openDeleteModal(id, "contact")} />
+                <ContactsList 
+                  contacts={contacts} 
+                  onDelete={(id) => openDeleteModal(id, "contact")}
+                  onEdit={(contact) => {
+                    setEditingContact(contact);
+                    setIsAddingContact(true);
+                  }}
+                />
               </CardContent>
             </Card>
           </TabsContent>
