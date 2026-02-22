@@ -20,6 +20,9 @@ import {
   Link2,
   Unlink,
   Clock,
+  Download,
+  Upload,
+  Bell,
 } from "lucide-react";
 import {
   Dialog,
@@ -40,6 +43,7 @@ import {
   StatsCards,
   TemplateForm,
   TemplatesList,
+  ReminderForm,
 } from "./components";
 
 interface User {
@@ -64,6 +68,7 @@ interface Message {
   deliveredAt?: string;
   readAt?: string;
   recurrenceType?: "NONE" | "MONTHLY";
+  reminderDays?: number;
   contactIds?: string[];
   contact: {
     name: string;
@@ -517,6 +522,7 @@ export default function DashboardPage() {
           <TabsList>
             <TabsTrigger value="messages">Mensagens</TabsTrigger>
             <TabsTrigger value="scheduled">Agendamentos</TabsTrigger>
+            <TabsTrigger value="reminders">Lembretes</TabsTrigger>
             <TabsTrigger value="contacts">Contatos</TabsTrigger>
             <TabsTrigger value="templates">Templates</TabsTrigger>
           </TabsList>
@@ -602,6 +608,50 @@ export default function DashboardPage() {
             </Card>
           </TabsContent>
 
+          {/* Reminders Tab */}
+          <TabsContent value="reminders" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Bell className="w-5 h-5" />
+                  Lembretes com Confirmação
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button size="sm" className="bg-green-500 hover:bg-green-600 mb-4">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Novo Lembrete
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[500px]">
+                    <DialogHeader>
+                      <DialogTitle>Criar Novo Lembrete</DialogTitle>
+                      <DialogDescription>
+                        Agende um lembrete de confirmação para enviar X dias antes da consulta
+                      </DialogDescription>
+                    </DialogHeader>
+                    <ReminderForm
+                      contacts={contacts}
+                      onSuccess={(msg) => {
+                        showSuccess(msg);
+                        loadData();
+                      }}
+                      onError={showError}
+                    />
+                  </DialogContent>
+                </Dialog>
+
+                <MessagesList
+                  messages={messages.filter((m) => m.reminderDays && m.reminderDays > 0)}
+                  onDelete={(id) => openDeleteModal(id, "message")}
+                  onSendNow={handleSendNow}
+                />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           {/* Contacts Tab */}
           <TabsContent value="contacts" className="space-y-6">
             <Card>
@@ -644,6 +694,52 @@ export default function DashboardPage() {
                 </div>
               </CardHeader>
               <CardContent>
+                <div className="flex gap-2 mb-4">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => contactsApi.exportCSV()}
+                    className="text-blue-600 border-blue-300 hover:bg-blue-50"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Exportar CSV
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => document.getElementById('csv-import-input')?.click()}
+                    className="text-green-600 border-green-300 hover:bg-green-50"
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    Importar CSV
+                  </Button>
+                  <input
+                    id="csv-import-input"
+                    type="file"
+                    accept=".csv"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      
+                      const reader = new FileReader();
+                      reader.onload = async (event) => {
+                        try {
+                          const csvContent = event.target?.result as string;
+                          const result = await contactsApi.importCSV(csvContent);
+                          showSuccess(
+                            `Importação concluída: ${result.success} contatos importados, ${result.failed} falharam`
+                          );
+                          loadData();
+                        } catch (err: any) {
+                          showError(err.message || "Erro ao importar CSV");
+                        }
+                      };
+                      reader.readAsText(file);
+                      e.target.value = '';
+                    }}
+                  />
+                </div>
                 <ContactsList contacts={contacts} onDelete={(id) => openDeleteModal(id, "contact")} />
               </CardContent>
             </Card>

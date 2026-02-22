@@ -77,6 +77,35 @@ export const contactsApi = {
     apiFetch('/contacts', {
       method: 'DELETE',
     }),
+
+  exportCSV: async () => {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${API_URL}/contacts/export`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error('Erro ao exportar contatos');
+    }
+    
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'contatos.csv';
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  },
+
+  importCSV: async (csvContent: string) =>
+    apiFetch('/contacts/import', {
+      method: 'POST',
+      body: JSON.stringify({ csvContent }),
+    }),
 };
 
 export const messagesApi = {
@@ -97,6 +126,17 @@ export const messagesApi = {
     recurrenceType?: 'NONE' | 'MONTHLY';
   }) =>
     apiFetch('/messages/bulk', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  createWithReminder: (data: {
+    content: string;
+    contactId: string;
+    scheduledAt: string;
+    reminderDays: 1 | 2;
+  }) =>
+    apiFetch('/messages/with-reminder', {
       method: 'POST',
       body: JSON.stringify(data),
     }),

@@ -11,14 +11,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, RefreshCw, Send, Calendar, Users } from "lucide-react";
-import { useState } from "react";
+import { Plus, RefreshCw, Send, Calendar, Users, Search } from "lucide-react";
+import { useState, useMemo } from "react";
 import { messagesApi } from "@/lib/api";
 
 interface Contact {
   id: string;
   name: string;
   phone: string;
+  email?: string;
 }
 
 interface MessageFormProps {
@@ -33,6 +34,8 @@ type RecurrenceType = "NONE" | "MONTHLY";
 export function MessageForm({ contacts, onSuccess, onError }: MessageFormProps) {
   const [sendType, setSendType] = useState<SendType>("single");
   const [selectedContacts, setSelectedContacts] = useState<string[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTermBulk, setSearchTermBulk] = useState("");
   const [newMessage, setNewMessage] = useState({
     content: "",
     contactId: "",
@@ -41,6 +44,29 @@ export function MessageForm({ contacts, onSuccess, onError }: MessageFormProps) 
     recurrenceType: "NONE" as RecurrenceType,
   });
   const [isSaving, setIsSaving] = useState(false);
+
+  // Filtrar contatos por termo de busca
+  const filteredContacts = useMemo(() => {
+    if (!searchTerm) return contacts;
+    const term = searchTerm.toLowerCase();
+    return contacts.filter(
+      (c) =>
+        c.name.toLowerCase().includes(term) ||
+        c.phone.includes(term) ||
+        (c.email && c.email.toLowerCase().includes(term))
+    );
+  }, [contacts, searchTerm]);
+
+  const filteredContactsBulk = useMemo(() => {
+    if (!searchTermBulk) return contacts;
+    const term = searchTermBulk.toLowerCase();
+    return contacts.filter(
+      (c) =>
+        c.name.toLowerCase().includes(term) ||
+        c.phone.includes(term) ||
+        (c.email && c.email.toLowerCase().includes(term))
+    );
+  }, [contacts, searchTermBulk]);
 
   const handleContactToggle = (contactId: string) => {
     setSelectedContacts((prev) =>
@@ -223,30 +249,57 @@ export function MessageForm({ contacts, onSuccess, onError }: MessageFormProps) 
 
       {sendType === "single" ? (
         <div className="space-y-2">
-          <Label htmlFor="contact">Contato *</Label>
-          <Select
-            value={newMessage.contactId}
-            onValueChange={(value) =>
-              setNewMessage({ ...newMessage, contactId: value })
-            }
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Selecione um contato" />
-            </SelectTrigger>
-            <SelectContent>
-              {contacts.map((contact) => (
-                <SelectItem key={contact.id} value={contact.id}>
+          <Label>Contato *</Label>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Input
+              placeholder="Buscar contato por nome, telefone ou email..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 mb-2"
+            />
+          </div>
+          <div className="border rounded-md max-h-48 overflow-y-auto p-2 space-y-1">
+            {(searchTerm ? filteredContacts : contacts).slice(0, 50).map((contact) => (
+              <label
+                key={contact.id}
+                className={`flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer ${
+                  newMessage.contactId === contact.id ? 'bg-green-50 border border-green-200' : ''
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="contact"
+                  checked={newMessage.contactId === contact.id}
+                  onChange={() => setNewMessage({ ...newMessage, contactId: contact.id })}
+                  className="accent-green-500"
+                />
+                <span className="text-sm">
                   {contact.name} - {contact.phone}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+                </span>
+              </label>
+            ))}
+            {(searchTerm ? filteredContacts : contacts).length === 0 && (
+              <div className="p-2 text-sm text-gray-500 text-center">
+                Nenhum contato encontrado
+              </div>
+            )}
+          </div>
         </div>
       ) : (
         <div className="space-y-2">
           <Label>Contatos ({selectedContacts.length} selecionados) *</Label>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Input
+              placeholder="Buscar contatos por nome, telefone ou email..."
+              value={searchTermBulk}
+              onChange={(e) => setSearchTermBulk(e.target.value)}
+              className="pl-10 mb-2"
+            />
+          </div>
           <div className="border rounded-md max-h-48 overflow-y-auto p-2 space-y-1">
-            {contacts.map((contact) => (
+            {(searchTermBulk ? filteredContactsBulk : contacts).map((contact) => (
               <label
                 key={contact.id}
                 className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer"
