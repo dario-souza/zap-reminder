@@ -69,6 +69,7 @@ interface Message {
   readAt?: string;
   recurrenceType?: "NONE" | "MONTHLY";
   reminderDays?: number;
+  isReminder?: boolean;
   contactIds?: string[];
   contact: {
     name: string;
@@ -645,7 +646,7 @@ export default function DashboardPage() {
                 </Dialog>
 
                 <MessagesList
-                  messages={messages.filter((m) => m.reminderDays && m.reminderDays > 0)}
+                  messages={messages.filter((m) => m.isReminder === true)}
                   onDelete={(id) => openDeleteModal(id, "message")}
                   onSendNow={handleSendNow}
                 />

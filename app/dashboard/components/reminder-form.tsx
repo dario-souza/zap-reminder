@@ -137,10 +137,10 @@ export function ReminderForm({ contacts, onSuccess, onError }: ReminderFormProps
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="content">Mensagem da Consulta *</Label>
+        <Label htmlFor="content">Mensagem do Lembrete *</Label>
         <Textarea
           id="content"
-          placeholder="Digite a mensagem que será enviada no dia da consulta..."
+          placeholder="Ex: Não esqueça da sua consulta amanhã às 14h. Responda SIM para confirmar."
           value={formData.content}
           onChange={(e) =>
             setFormData({ ...formData, content: e.target.value })
@@ -148,10 +148,13 @@ export function ReminderForm({ contacts, onSuccess, onError }: ReminderFormProps
           required
           rows={3}
         />
+        <p className="text-xs text-gray-500">
+          Esta mensagem será enviada {formData.reminderDays} dia(s) antes do evento.
+        </p>
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="scheduledAt">Data e Hora da Consulta *</Label>
+        <Label htmlFor="scheduledAt">Data do Evento *</Label>
         <div className="relative">
           <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
           <Input
@@ -165,47 +168,33 @@ export function ReminderForm({ contacts, onSuccess, onError }: ReminderFormProps
             required
           />
         </div>
+        <p className="text-xs text-gray-500">
+          O lembrete será enviado {formData.reminderDays} dia(s) antes desta data.
+        </p>
       </div>
 
-      <div className="flex items-center gap-2">
-        <input
-          type="checkbox"
-          id="sendReminder"
-          checked={formData.sendReminder}
-          onChange={(e) =>
-            setFormData({ ...formData, sendReminder: e.target.checked })
+      <div className="space-y-2">
+        <Label>Enviar lembrete</Label>
+        <Select
+          value={formData.reminderDays.toString()}
+          onValueChange={(value) =>
+            setFormData({ ...formData, reminderDays: parseInt(value) as 1 | 2 })
           }
-          className="rounded border-gray-300"
-        />
-        <Label htmlFor="sendReminder" className="text-sm cursor-pointer">
-          Enviar lembrete de confirmação
-        </Label>
+        >
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="1">1 dia antes</SelectItem>
+            <SelectItem value="2">2 dias antes</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
-
-      {formData.sendReminder && (
-        <div className="flex items-center gap-2 ml-6">
-          <span className="text-sm text-gray-600">Enviar lembrete</span>
-          <Select
-            value={formData.reminderDays.toString()}
-            onValueChange={(value) =>
-              setFormData({ ...formData, reminderDays: parseInt(value) as 1 | 2 })
-            }
-          >
-            <SelectTrigger className="w-32">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="1">1 dia antes</SelectItem>
-              <SelectItem value="2">2 dias antes</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      )}
 
       <Button
         type="submit"
         className="w-full bg-green-500 hover:bg-green-600"
-        disabled={isSaving || !formData.sendReminder}
+        disabled={isSaving}
       >
         {isSaving ? (
           <>
