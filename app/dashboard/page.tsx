@@ -5,10 +5,25 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { authApi, contactsApi, messagesApi, confirmationsApi } from "@/lib/api";
-import { MessageCircle, User, LogOut, Plus, Phone, Mail, Trash2, AlertCircle, CheckCircle2, Send, Clock, Calendar, CheckCheck, AlertTriangle, Smartphone, RefreshCw, Link2, Unlink, Bell, X, Check, XCircle } from "lucide-react";
+import { authApi, contactsApi, messagesApi, templatesApi } from "@/lib/api";
+import {
+  MessageCircle,
+  User,
+  LogOut,
+  Plus,
+  Trash2,
+  AlertCircle,
+  CheckCircle2,
+  Send,
+  RefreshCw,
+  Smartphone,
+  Link2,
+  Unlink,
+  Clock,
+  Download,
+  Upload,
+  Bell,
+} from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -17,21 +32,24 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { QRCodeModal } from "@/components/whatsapp/qrcode-modal";
+import {
+  ConfirmDialog,
+  ContactForm,
+  MessageForm,
+  ContactsList,
+  MessagesList,
+  StatsCards,
+  TemplateForm,
+  TemplatesList,
+  ReminderForm,
+} from "./components";
 
 interface User {
   id: string;
   name: string;
   email: string;
-  phone?: string;
 }
 
 interface Contact {
@@ -39,61 +57,69 @@ interface Contact {
   name: string;
   phone: string;
   email?: string;
-  createdAt: string;
 }
 
 interface Message {
   id: string;
   content: string;
-  status: 'PENDING' | 'SENT' | 'DELIVERED' | 'READ' | 'FAILED' | 'SCHEDULED';
+  status: "PENDING" | "SENT" | "DELIVERED" | "READ" | "FAILED" | "SCHEDULED";
   scheduledAt?: string;
   sentAt?: string;
   deliveredAt?: string;
   readAt?: string;
-  createdAt: string;
+  recurrenceType?: "NONE" | "MONTHLY";
+  reminderDays?: number;
+  isReminder?: boolean;
+  contactIds?: string[];
   contact: {
     name: string;
     phone: string;
   };
 }
 
-interface Confirmation {
+interface Template {
   id: string;
-  status: 'PENDING' | 'CONFIRMED' | 'DENIED';
-  contactName: string;
-  contactPhone: string;
-  eventDate: string;
-  messageContent?: string;
-  response?: string;
-  respondedAt?: string;
+  name: string;
+  content: string;
   createdAt: string;
+  updatedAt: string;
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [confirmations, setConfirmations] = useState<Confirmation[]>([]);
+  const scheduledMessages = messages.filter((m) => m.status === "SCHEDULED" && m.isReminder !== true);
+  const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isAddingContact, setIsAddingContact] = useState(false);
-  const [isAddingMessage, setIsAddingMessage] = useState(false);
-  const [newContact, setNewContact] = useState({ name: "", phone: "", email: "" });
-  const [newMessage, setNewMessage] = useState({ 
-    content: "", 
-    contactId: "", 
-    scheduledAt: "",
-    sendNow: false 
-  });
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  // Modais
+  const [isAddingContact, setIsAddingContact] = useState(false);
+  const [editingContact, setEditingContact] = useState<Contact | null>(null);
+  const [isAddingMessage, setIsAddingMessage] = useState(false);
+  const [isAddingTemplate, setIsAddingTemplate] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
+  const [isQRCodeModalOpen, setIsQRCodeModalOpen] = useState(false);
+
+  // Estados de confirmação
+  const [itemToDelete, setItemToDelete] = useState<string | null>(null);
+  const [deleteType, setDeleteType] = useState<"contact" | "message" | "template" | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteAllType, setDeleteAllType] = useState<"contacts" | "messages" | "templates" | null>(null);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
+
+  // WhatsApp
   const [whatsappStatus, setWhatsappStatus] = useState<any>(null);
   const [isCheckingWhatsapp, setIsCheckingWhatsapp] = useState(false);
   const [testPhone, setTestPhone] = useState("");
   const [testMessage, setTestMessage] = useState("");
   const [isSendingTest, setIsSendingTest] = useState(false);
-  const [isQRCodeModalOpen, setIsQRCodeModalOpen] = useState(false);
+
+  // Cron
   const [cronStatus, setCronStatus] = useState<any>(null);
-  const router = useRouter();
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -114,14 +140,14 @@ export default function DashboardPage() {
 
   const loadData = async () => {
     try {
-      const [contactsData, messagesData, confirmationsData] = await Promise.all([
+      const [contactsData, messagesData, templatesData] = await Promise.all([
         contactsApi.getAll(),
         messagesApi.getAll(),
-        confirmationsApi.getAll(),
+        templatesApi.getAll(),
       ]);
       setContacts(contactsData);
       setMessages(messagesData);
-      setConfirmations(confirmationsData);
+      setTemplates(templatesData);
     } catch (error: any) {
       console.error("Erro ao carregar dados:", error);
     } finally {
@@ -151,23 +177,14 @@ export default function DashboardPage() {
     }
   };
 
-  const handleSendTestMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSendingTest(true);
-    setError(null);
-    setSuccess(null);
+  const showSuccess = (message: string) => {
+    setSuccess(message);
+    setTimeout(() => setSuccess(null), 3000);
+  };
 
-    try {
-      await messagesApi.sendTestMessage(testPhone, testMessage || "Teste ZapReminder! 🚀");
-      setSuccess("Mensagem de teste enviada com sucesso!");
-      setTestPhone("");
-      setTestMessage("");
-      setTimeout(() => setSuccess(null), 3000);
-    } catch (err: any) {
-      setError(err.message || "Erro ao enviar mensagem de teste");
-    } finally {
-      setIsSendingTest(false);
-    }
+  const showError = (message: string) => {
+    setError(message);
+    setTimeout(() => setError(null), 3000);
   };
 
   const handleLogout = async () => {
@@ -182,137 +199,90 @@ export default function DashboardPage() {
     }
   };
 
-  const handleAddContact = async (e: React.FormEvent) => {
+  const handleSendTestMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
-    setSuccess(null);
+    setIsSendingTest(true);
 
     try {
-      await contactsApi.create({
-        name: newContact.name,
-        phone: newContact.phone,
-        email: newContact.email || undefined,
-      });
-
-      setSuccess("Contato adicionado com sucesso!");
-      setNewContact({ name: "", phone: "", email: "" });
-      setIsAddingContact(false);
-      loadData();
-
-      setTimeout(() => setSuccess(null), 3000);
+      await messagesApi.sendTestMessage(testPhone, testMessage || "Teste ZapReminder! 🚀");
+      showSuccess("Mensagem de teste enviada com sucesso!");
+      setTestPhone("");
+      setTestMessage("");
     } catch (err: any) {
-      setError(err.message || "Erro ao adicionar contato");
+      showError(err.message || "Erro ao enviar mensagem de teste");
+    } finally {
+      setIsSendingTest(false);
     }
   };
 
-  const handleDeleteContact = async (id: string) => {
-    if (!confirm("Tem certeza que deseja excluir este contato?")) return;
+  const openDeleteModal = (id: string, type: "contact" | "message" | "template") => {
+    setItemToDelete(id);
+    setDeleteType(type);
+  };
+
+  const handleDelete = async () => {
+    if (!itemToDelete || !deleteType) return;
+    setIsDeleting(true);
 
     try {
-      await contactsApi.delete(id);
-      setSuccess("Contato excluído com sucesso!");
+      if (deleteType === "contact") {
+        await contactsApi.delete(itemToDelete);
+        showSuccess("Contato excluído com sucesso!");
+      } else if (deleteType === "message") {
+        await messagesApi.delete(itemToDelete);
+        showSuccess("Mensagem excluída com sucesso!");
+      } else if (deleteType === "template") {
+        await templatesApi.delete(itemToDelete);
+        showSuccess("Template excluído com sucesso!");
+      }
+      setItemToDelete(null);
+      setDeleteType(null);
       loadData();
-      setTimeout(() => setSuccess(null), 3000);
     } catch (err: any) {
-      setError(err.message || "Erro ao excluir contato");
+      showError(err.message || `Erro ao excluir ${deleteType === "contact" ? "contato" : deleteType === "message" ? "mensagem" : "template"}`);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
-  const handleCreateMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setSuccess(null);
-
-    if (!newMessage.contactId) {
-      setError("Selecione um contato");
-      return;
-    }
+  const handleDeleteAll = async () => {
+    if (!deleteAllType) return;
+    setIsDeletingAll(true);
 
     try {
-      const messageData: any = {
-        content: newMessage.content,
-        contactId: newMessage.contactId,
-      };
-
-      // Se tiver data de agendamento, adiciona
-      if (newMessage.scheduledAt && !newMessage.sendNow) {
-        messageData.scheduledAt = new Date(newMessage.scheduledAt).toISOString();
+      if (deleteAllType === "contacts") {
+        await contactsApi.deleteAll();
+        showSuccess("Todos os contatos foram excluídos com sucesso!");
+      } else if (deleteAllType === "messages") {
+        await messagesApi.deleteAll();
+        showSuccess("Todas as mensagens foram excluídas com sucesso!");
+      } else if (deleteAllType === "templates") {
+        await templatesApi.deleteAll();
+        showSuccess("Todos os templates foram excluídos com sucesso!");
       }
-
-      const createdMessage = await messagesApi.create(messageData);
-
-      // Se marcou para enviar agora
-      if (newMessage.sendNow) {
-        await messagesApi.sendNow(createdMessage.id);
-        setSuccess("Mensagem enviada com sucesso!");
-      } else if (newMessage.scheduledAt) {
-        setSuccess("Mensagem agendada com sucesso!");
-      } else {
-        setSuccess("Mensagem criada! Use o botão 'Enviar Agora' quando quiser.");
-      }
-
-      setNewMessage({ content: "", contactId: "", scheduledAt: "", sendNow: false });
-      setIsAddingMessage(false);
+      setDeleteAllType(null);
       loadData();
-
-      setTimeout(() => setSuccess(null), 3000);
     } catch (err: any) {
-      setError(err.message || "Erro ao criar mensagem");
+      showError(err.message || `Erro ao excluir ${deleteAllType === "contacts" ? "contatos" : deleteAllType === "messages" ? "mensagens" : "templates"}`);
+    } finally {
+      setIsDeletingAll(false);
     }
   };
 
   const handleSendNow = async (messageId: string) => {
-    setError(null);
-    setSuccess(null);
-
     try {
       await messagesApi.sendNow(messageId);
-      setSuccess("Mensagem enviada com sucesso!");
+      showSuccess("Mensagem enviada com sucesso!");
       loadData();
-      setTimeout(() => setSuccess(null), 3000);
     } catch (err: any) {
-      setError(err.message || "Erro ao enviar mensagem");
+      showError(err.message || "Erro ao enviar mensagem");
     }
   };
 
-  const handleDeleteMessage = async (id: string) => {
-    if (!confirm("Tem certeza que deseja excluir esta mensagem?")) return;
-
-    try {
-      await messagesApi.delete(id);
-      setSuccess("Mensagem excluída com sucesso!");
-      loadData();
-      setTimeout(() => setSuccess(null), 3000);
-    } catch (err: any) {
-      setError(err.message || "Erro ao excluir mensagem");
-    }
-  };
-
-  const getStatusBadge = (status: string) => {
-    const styles = {
-      PENDING: { bg: 'bg-yellow-100', text: 'text-yellow-700', icon: Clock, label: 'Pendente' },
-      SENT: { bg: 'bg-green-100', text: 'text-green-700', icon: CheckCheck, label: 'Enviada' },
-      DELIVERED: { bg: 'bg-blue-100', text: 'text-blue-700', icon: CheckCheck, label: 'Entregue' },
-      READ: { bg: 'bg-purple-100', text: 'text-purple-700', icon: CheckCheck, label: 'Lida' },
-      FAILED: { bg: 'bg-red-100', text: 'text-red-700', icon: AlertTriangle, label: 'Falhou' },
-      SCHEDULED: { bg: 'bg-blue-100', text: 'text-blue-700', icon: Calendar, label: 'Agendada' },
-    };
-    const style = styles[status as keyof typeof styles] || styles.PENDING;
-    const Icon = style.icon;
-
-    return (
-      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${style.bg} ${style.text}`}>
-        <Icon className="w-3 h-3" />
-        {style.label}
-      </span>
-    );
-  };
-
-  const sentMessages = messages.filter(m => ['SENT', 'DELIVERED', 'READ'].includes(m.status));
-  const scheduledMessages = messages.filter(m => m.status === 'SCHEDULED');
-  const pendingMessages = messages.filter(m => m.status === 'PENDING');
-  const deliveredMessages = messages.filter(m => m.status === 'DELIVERED');
-  const readMessages = messages.filter(m => m.status === 'READ');
+  // Stats
+  const sentMessages = messages.filter((m) => ["SENT", "DELIVERED", "READ"].includes(m.status));
+  const deliveredMessages = messages.filter((m) => m.status === "DELIVERED");
+  const readMessages = messages.filter((m) => m.status === "READ");
 
   if (loading) {
     return (
@@ -328,6 +298,7 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Header */}
       <header className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -349,64 +320,29 @@ export default function DashboardPage() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <h1 className="text-2xl font-bold mb-6">Bem-vindo, {user.name}!</h1>
 
+        {/* Alerts */}
         {(error || success) && (
-          <div className={`mb-6 p-4 rounded-lg flex items-center gap-2 ${
-            error 
-              ? "bg-red-50 text-red-600 border border-red-200" 
-              : "bg-green-50 text-green-600 border border-green-200"
-          }`}>
+          <div
+            className={`mb-6 p-4 rounded-lg flex items-center gap-2 ${
+              error
+                ? "bg-red-50 text-red-600 border border-red-200"
+                : "bg-green-50 text-green-600 border border-green-200"
+            }`}
+          >
             {error ? <AlertCircle className="h-5 w-5" /> : <CheckCircle2 className="h-5 w-5" />}
             <span>{error || success}</span>
           </div>
         )}
-        
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Contatos</CardTitle>
-              <User className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{contacts.length}</div>
-              <p className="text-xs text-muted-foreground">Total de contatos</p>
-            </CardContent>
-          </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Mensagens</CardTitle>
-              <MessageCircle className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{messages.length}</div>
-              <p className="text-xs text-muted-foreground">Total de mensagens</p>
-            </CardContent>
-          </Card>
+        {/* Stats */}
+        <StatsCards
+          contactsCount={contacts.length}
+          messagesCount={messages.length}
+          sentCount={sentMessages.length}
+          scheduledCount={scheduledMessages.length}
+        />
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Enviadas</CardTitle>
-              <CheckCheck className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{sentMessages.length}</div>
-              <p className="text-xs text-muted-foreground">Mensagens enviadas</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Agendadas</CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{scheduledMessages.length}</div>
-              <p className="text-xs text-muted-foreground">Mensagens agendadas</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Status do WhatsApp */}
+        {/* WhatsApp Status */}
         <Card className="mb-8">
           <CardHeader className="flex flex-row items-center justify-between">
             <div className="flex items-center gap-2">
@@ -415,9 +351,9 @@ export default function DashboardPage() {
             </div>
             <div className="flex items-center gap-2">
               {whatsappStatus?.connected && (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => messagesApi.disconnectWhatsApp().then(() => checkWhatsappConnection())}
                   className="text-red-600 border-red-300 hover:bg-red-50"
                 >
@@ -425,13 +361,13 @@ export default function DashboardPage() {
                   Desconectar
                 </Button>
               )}
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={checkWhatsappConnection}
                 disabled={isCheckingWhatsapp}
               >
-                <RefreshCw className={`w-4 h-4 mr-2 ${isCheckingWhatsapp ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`w-4 h-4 mr-2 ${isCheckingWhatsapp ? "animate-spin" : ""}`} />
                 Verificar
               </Button>
             </div>
@@ -449,7 +385,7 @@ export default function DashboardPage() {
                     <p className="text-green-800 font-medium">✅ WhatsApp conectado!</p>
                     {whatsappStatus.profile?.pushName && (
                       <p className="text-green-700 text-sm">
-                        {whatsappStatus.profile.pushName} ({whatsappStatus.profile.id?.split('@')[0]})
+                        {whatsappStatus.profile.pushName} ({whatsappStatus.profile.id?.split("@")[0]})
                       </p>
                     )}
                   </div>
@@ -457,8 +393,7 @@ export default function DashboardPage() {
                 <p className="text-green-700 text-sm">
                   Sua integração está funcionando. Você pode enviar mensagens para seus contatos.
                 </p>
-                
-                {/* Formulário de teste */}
+
                 <form onSubmit={handleSendTestMessage} className="mt-4 space-y-3">
                   <p className="text-sm font-medium text-gray-700">Enviar mensagem de teste:</p>
                   <div className="flex gap-2">
@@ -474,8 +409,8 @@ export default function DashboardPage() {
                       onChange={(e) => setTestMessage(e.target.value)}
                       className="flex-1"
                     />
-                    <Button 
-                      type="submit" 
+                    <Button
+                      type="submit"
                       disabled={isSendingTest || !testPhone}
                       className="bg-green-500 hover:bg-green-600"
                     >
@@ -494,7 +429,7 @@ export default function DashboardPage() {
                 <p className="text-red-700 text-sm mb-4">
                   Para enviar mensagens via WhatsApp, você precisa conectar sua conta.
                 </p>
-                <Button 
+                <Button
                   onClick={() => setIsQRCodeModalOpen(true)}
                   className="bg-green-500 hover:bg-green-600 w-full sm:w-auto"
                 >
@@ -506,18 +441,14 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Status do Cron Job */}
+        {/* Cron Job Status */}
         <Card className="mb-8">
           <CardHeader className="flex flex-row items-center justify-between">
             <div className="flex items-center gap-2">
               <Clock className="w-5 h-5 text-blue-600" />
               <CardTitle className="text-lg">Agendamento Automático</CardTitle>
             </div>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={checkCronStatus}
-            >
+            <Button variant="outline" size="sm" onClick={checkCronStatus}>
               <RefreshCw className="w-4 h-4 mr-2" />
               Atualizar
             </Button>
@@ -533,17 +464,12 @@ export default function DashboardPage() {
                   </div>
                   <div>
                     <p className="text-green-800 font-medium">✅ Cron Job Ativo</p>
-                    <p className="text-green-700 text-sm">
-                      Verificando mensagens agendadas a cada minuto
-                    </p>
+                    <p className="text-green-700 text-sm">Verificando mensagens agendadas a cada minuto</p>
                   </div>
                 </div>
                 <p className="text-green-700 text-sm">
                   O sistema enviará automaticamente as mensagens agendadas quando chegar o horário.
                 </p>
-                <div className="mt-3 text-sm text-green-600">
-                  <span className="font-medium">Próxima verificação:</span> {cronStatus.nextRun}
-                </div>
               </div>
             ) : (
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
@@ -558,488 +484,369 @@ export default function DashboardPage() {
                     </p>
                   </div>
                 </div>
-                <p className="text-yellow-700 text-sm">
-                  O sistema não está verificando mensagens agendadas. Mensagens criadas não serão enviadas automaticamente.
-                </p>
               </div>
             )}
-            
-            {/* Estatísticas de mensagens agendadas */}
-            <div className="mt-4 grid grid-cols-2 gap-4">
+
+            <div className="mt-4 grid grid-cols-4 gap-4">
               <div className="bg-blue-50 rounded-lg p-3 text-center">
                 <p className="text-2xl font-bold text-blue-600">
-                  {messages.filter(m => m.status === 'SCHEDULED').length}
+                  {messages.filter((m) => m.status === "SCHEDULED").length}
                 </p>
-                <p className="text-sm text-blue-700">Mensagens Agendadas</p>
+                <p className="text-sm text-blue-700">Agendadas</p>
               </div>
               <div className="bg-green-50 rounded-lg p-3 text-center">
-                <p className="text-2xl font-bold text-green-600">
-                  {sentMessages.length}
-                </p>
-                <p className="text-sm text-green-700">Mensagens Enviadas</p>
+                <p className="text-2xl font-bold text-green-600">{sentMessages.length}</p>
+                <p className="text-sm text-green-700">Enviadas</p>
               </div>
               <div className="bg-blue-50 rounded-lg p-3 text-center">
-                <p className="text-2xl font-bold text-blue-600">
-                  {deliveredMessages.length}
-                </p>
-                <p className="text-sm text-blue-700">Mensagens Entregues</p>
+                <p className="text-2xl font-bold text-blue-600">{deliveredMessages.length}</p>
+                <p className="text-sm text-blue-700">Entregues</p>
               </div>
               <div className="bg-purple-50 rounded-lg p-3 text-center">
-                <p className="text-2xl font-bold text-purple-600">
-                  {readMessages.length}
-                </p>
-                <p className="text-sm text-purple-700">Mensagens Lidas</p>
+                <p className="text-2xl font-bold text-purple-600">{readMessages.length}</p>
+                <p className="text-sm text-purple-700">Lidas</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Modal de QR Code */}
-        <QRCodeModal 
-          open={isQRCodeModalOpen} 
+        {/* QR Code Modal */}
+        <QRCodeModal
+          open={isQRCodeModalOpen}
           onOpenChange={setIsQRCodeModalOpen}
           onConnected={() => {
             checkWhatsappConnection();
-            setSuccess("WhatsApp conectado com sucesso!");
-            setTimeout(() => setSuccess(null), 3000);
+            showSuccess("WhatsApp conectado com sucesso!");
           }}
         />
 
         <Tabs defaultValue="messages" className="space-y-6">
           <TabsList>
             <TabsTrigger value="messages">Mensagens</TabsTrigger>
+            <TabsTrigger value="scheduled">Agendamentos</TabsTrigger>
             <TabsTrigger value="reminders">Lembretes</TabsTrigger>
-            <TabsTrigger value="confirmations">Confirmações</TabsTrigger>
             <TabsTrigger value="contacts">Contatos</TabsTrigger>
+            <TabsTrigger value="templates">Templates</TabsTrigger>
           </TabsList>
 
+          {/* Messages Tab */}
           <TabsContent value="messages" className="space-y-6">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Minhas Mensagens</CardTitle>
-                <Dialog open={isAddingMessage} onOpenChange={setIsAddingMessage}>
+                <div className="flex gap-2">
+                  {messages.length > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setDeleteAllType("messages")}
+                      className="text-red-600 border-red-300 hover:bg-red-50"
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Deletar Todas
+                    </Button>
+                  )}
+                  <Dialog open={isAddingMessage} onOpenChange={setIsAddingMessage}>
+                    <DialogTrigger asChild>
+                      <Button size="sm" className="bg-green-500 hover:bg-green-600">
+                        <Plus className="w-4 h-4 mr-2" />
+                        Nova Mensagem
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[500px]">
+                      <DialogHeader>
+                        <DialogTitle>Criar Nova Mensagem</DialogTitle>
+                        <DialogDescription>Escreva sua mensagem e escolha quando enviar</DialogDescription>
+                      </DialogHeader>
+                      <MessageForm
+                        contacts={contacts}
+                        onSuccess={(msg) => {
+                          showSuccess(msg);
+                          setIsAddingMessage(false);
+                          loadData();
+                        }}
+                        onError={showError}
+                      />
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <MessagesList
+                  messages={messages}
+                  onDelete={(id) => openDeleteModal(id, "message")}
+                  onSendNow={handleSendNow}
+                />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Scheduled Tab */}
+          <TabsContent value="scheduled" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="w-5 h-5" />
+                  Mensagens Agendadas
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {scheduledMessages.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <Clock className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p>Nenhuma mensagem agendada</p>
+                    <p className="text-sm mt-1">
+                      Agende uma mensagem na aba &quot;Mensagens&quot;
+                    </p>
+                  </div>
+                ) : (
+                  <MessagesList
+                    messages={scheduledMessages}
+                    onDelete={(id) => openDeleteModal(id, "message")}
+                    onSendNow={handleSendNow}
+                  />
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Reminders Tab */}
+          <TabsContent value="reminders" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Bell className="w-5 h-5" />
+                  Lembretes com Confirmação
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Dialog>
                   <DialogTrigger asChild>
-                    <Button size="sm" className="bg-green-500 hover:bg-green-600">
+                    <Button size="sm" className="bg-green-500 hover:bg-green-600 mb-4">
                       <Plus className="w-4 h-4 mr-2" />
-                      Nova Mensagem
+                      Novo Lembrete
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="sm:max-w-[500px]">
                     <DialogHeader>
-                      <DialogTitle>Criar Nova Mensagem</DialogTitle>
+                      <DialogTitle>Criar Novo Lembrete</DialogTitle>
                       <DialogDescription>
-                        Escreva sua mensagem e escolha quando enviar
+                        Agende um lembrete de confirmação para enviar X dias antes da consulta
                       </DialogDescription>
                     </DialogHeader>
-                    <form onSubmit={handleCreateMessage} className="space-y-4 mt-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="contact">Contato *</Label>
-                        <Select
-                          value={newMessage.contactId}
-                          onValueChange={(value) => setNewMessage({ ...newMessage, contactId: value })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione um contato" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {contacts.map((contact) => (
-                              <SelectItem key={contact.id} value={contact.id}>
-                                {contact.name} - {contact.phone}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="content">Mensagem *</Label>
-                        <Textarea
-                          id="content"
-                          placeholder="Digite sua mensagem aqui..."
-                          value={newMessage.content}
-                          onChange={(e) => setNewMessage({ ...newMessage, content: e.target.value })}
-                          required
-                          rows={4}
-                        />
-                      </div>
-
-                      <div className="flex items-center gap-4">
-                        <div className="flex-1 space-y-2">
-                          <Label htmlFor="scheduledAt">Agendar para (opcional)</Label>
-                          <Input
-                            id="scheduledAt"
-                            type="datetime-local"
-                            value={newMessage.scheduledAt}
-                            onChange={(e) => setNewMessage({ 
-                              ...newMessage, 
-                              scheduledAt: e.target.value,
-                              sendNow: false 
-                            })}
-                            disabled={newMessage.sendNow}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          id="sendNow"
-                          checked={newMessage.sendNow}
-                          onChange={(e) => setNewMessage({ 
-                            ...newMessage, 
-                            sendNow: e.target.checked,
-                            scheduledAt: "" 
-                          })}
-                          className="rounded border-gray-300"
-                        />
-                        <Label htmlFor="sendNow" className="text-sm cursor-pointer">
-                          Enviar imediatamente
-                        </Label>
-                      </div>
-
-                      <Button 
-                        type="submit" 
-                        className="w-full bg-green-500 hover:bg-green-600"
-                      >
-                        {newMessage.sendNow ? (
-                          <>
-                            <Send className="w-4 h-4 mr-2" />
-                            Enviar Agora
-                          </>
-                        ) : newMessage.scheduledAt ? (
-                          <>
-                            <Calendar className="w-4 h-4 mr-2" />
-                            Agendar Mensagem
-                          </>
-                        ) : (
-                          <>
-                            <Plus className="w-4 h-4 mr-2" />
-                            Salvar Mensagem
-                          </>
-                        )}
-                      </Button>
-                    </form>
+                    <ReminderForm
+                      contacts={contacts}
+                      onSuccess={(msg) => {
+                        showSuccess(msg);
+                        loadData();
+                      }}
+                      onError={showError}
+                    />
                   </DialogContent>
                 </Dialog>
-              </CardHeader>
-              <CardContent>
-                {messages.length === 0 ? (
-                  <div className="text-center py-12 text-gray-500">
-                    <MessageCircle className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                    <p>Nenhuma mensagem criada</p>
-                    <p className="text-sm">Clique no botão acima para criar sua primeira mensagem</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {messages.map((message) => (
-                      <div
-                        key={message.id}
-                        className="p-4 bg-gray-50 rounded-lg"
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-2">
-                              <span className="font-medium">{message.contact.name}</span>
-                              {getStatusBadge(message.status)}
-                            </div>
-                            <p className="text-gray-700 mb-2">{message.content}</p>
-                            <div className="flex items-center gap-4 text-xs text-gray-500">
-                              <span className="flex items-center gap-1">
-                                <Phone className="w-3 h-3" />
-                                {message.contact.phone}
-                              </span>
-                              {message.scheduledAt && (
-                                <span className="flex items-center gap-1">
-                                  <Calendar className="w-3 h-3" />
-                                  Agendado: {new Date(message.scheduledAt).toLocaleString('pt-BR')}
-                                </span>
-                              )}
-                              {message.sentAt && (
-                                <span className="flex items-center gap-1">
-                                  <CheckCheck className="w-3 h-3" />
-                                  Enviado: {new Date(message.sentAt).toLocaleString('pt-BR')}
-                                </span>
-                              )}
-                              {message.deliveredAt && (
-                                <span className="flex items-center gap-1">
-                                  <CheckCheck className="w-3 h-3" />
-                                  Entregue: {new Date(message.deliveredAt).toLocaleString('pt-BR')}
-                                </span>
-                              )}
-                              {message.readAt && (
-                                <span className="flex items-center gap-1">
-                                  <CheckCheck className="w-3 h-3" />
-                                  Lida: {new Date(message.readAt).toLocaleString('pt-BR')}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2 ml-4">
-                            {message.status === 'PENDING' && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleSendNow(message.id)}
-                                className="text-green-600 border-green-600 hover:bg-green-50"
-                              >
-                                <Send className="w-4 h-4 mr-1" />
-                                Enviar
-                              </Button>
-                            )}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDeleteMessage(message.id)}
-                              className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+
+                <MessagesList
+                  messages={messages.filter((m) => m.isReminder === true)}
+                  onDelete={(id) => openDeleteModal(id, "message")}
+                  onSendNow={handleSendNow}
+                />
               </CardContent>
             </Card>
           </TabsContent>
 
-          <TabsContent value="reminders" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Lembretes</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
-                  <p className="text-amber-800 text-sm">
-                    <Bell className="w-4 h-4 inline mr-2" />
-                    Crie lembretes para seus contatos. A mensagem será enviada X dias antes do evento.
-                    O contato poderá confirmar presença respondendo "sim" ou "não".
-                  </p>
-                </div>
-                <div className="text-center py-8 text-gray-500">
-                  <Bell className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                  <p>Funcionalidade em desenvolvimento</p>
-                  <p className="text-sm">Em breve você poderá criar lembretes aqui</p>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="confirmations" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Confirmações de Presença</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {confirmations.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
-                    <CheckCircle2 className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                    <p>Nenhuma confirmação registrada</p>
-                    <p className="text-sm">As confirmações aparecerão aqui quando seus contatos responderem</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {confirmations.map((confirmation) => (
-                      <div
-                        key={confirmation.id}
-                        className={`p-4 rounded-lg border-2 ${
-                          confirmation.status === 'CONFIRMED' 
-                            ? 'bg-green-50 border-green-200' 
-                            : confirmation.status === 'DENIED'
-                            ? 'bg-red-50 border-red-200'
-                            : 'bg-yellow-50 border-yellow-200'
-                        }`}
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                              confirmation.status === 'CONFIRMED' 
-                                ? 'bg-green-100' 
-                                : confirmation.status === 'DENIED'
-                                ? 'bg-red-100'
-                                : 'bg-yellow-100'
-                            }`}>
-                              {confirmation.status === 'CONFIRMED' ? (
-                                <Check className="w-5 h-5 text-green-600" />
-                              ) : confirmation.status === 'DENIED' ? (
-                                <XCircle className="w-5 h-5 text-red-600" />
-                              ) : (
-                                <Bell className="w-5 h-5 text-yellow-600" />
-                              )}
-                            </div>
-                            <div>
-                              <p className="font-medium">{confirmation.contactName}</p>
-                              <p className="text-sm text-gray-500">{confirmation.contactPhone}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              confirmation.status === 'CONFIRMED' 
-                                ? 'bg-green-100 text-green-700' 
-                                : confirmation.status === 'DENIED'
-                                ? 'bg-red-100 text-red-700'
-                                : 'bg-yellow-100 text-yellow-700'
-                            }`}>
-                              {confirmation.status === 'CONFIRMED' ? 'Confirmado' : 
-                               confirmation.status === 'DENIED' ? 'Cancelado' : 'Pendente'}
-                            </span>
-                            {confirmation.status !== 'PENDING' && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={async () => {
-                                  if (!confirm("Tem certeza que deseja excluir esta confirmação?")) return;
-                                  try {
-                                    await confirmationsApi.delete(confirmation.id);
-                                    loadData();
-                                  } catch (err: any) {
-                                    setError(err.message || "Erro ao excluir confirmação");
-                                  }
-                                }}
-                                className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                        <div className="mt-3 pt-3 border-t border-gray-200">
-                          <div className="flex items-center gap-4 text-sm">
-                            <span className="flex items-center gap-1 text-gray-600">
-                              <Calendar className="w-4 h-4" />
-                              Evento: {new Date(confirmation.eventDate).toLocaleDateString('pt-BR')}
-                            </span>
-                            {confirmation.respondedAt && (
-                              <span className="flex items-center gap-1 text-gray-500">
-                                <CheckCheck className="w-4 h-4" />
-                                Respondido em: {new Date(confirmation.respondedAt).toLocaleDateString('pt-BR')}
-                              </span>
-                            )}
-                          </div>
-                          {confirmation.response && (
-                            <p className="mt-2 text-sm text-gray-600 bg-white p-2 rounded">
-                              <span className="font-medium">Resposta:</span> {confirmation.response}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
+          {/* Contacts Tab */}
           <TabsContent value="contacts" className="space-y-6">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Meus Contatos</CardTitle>
-                <Dialog open={isAddingContact} onOpenChange={setIsAddingContact}>
-                  <DialogTrigger asChild>
-                    <Button size="sm" className="bg-green-500 hover:bg-green-600">
-                      <Plus className="w-4 h-4 mr-2" />
-                      Adicionar Contato
+                <div className="flex gap-2">
+                  {contacts.length > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setDeleteAllType("contacts")}
+                      className="text-red-600 border-red-300 hover:bg-red-50"
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Deletar Todos
                     </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Adicionar Novo Contato</DialogTitle>
-                      <DialogDescription>
-                        Preencha os dados do contato abaixo
-                      </DialogDescription>
-                    </DialogHeader>
-                    <form onSubmit={handleAddContact} className="space-y-4 mt-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="name">Nome *</Label>
-                        <Input
-                          id="name"
-                          placeholder="Nome do contato"
-                          value={newContact.name}
-                          onChange={(e) => setNewContact({ ...newContact, name: e.target.value })}
-                          required
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="phone">Telefone *</Label>
-                        <Input
-                          id="phone"
-                          placeholder="(11) 99999-9999"
-                          value={newContact.phone}
-                          onChange={(e) => setNewContact({ ...newContact, phone: e.target.value })}
-                          required
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="email">Email</Label>
-                        <Input
-                          id="email"
-                          type="email"
-                          placeholder="email@exemplo.com"
-                          value={newContact.email}
-                          onChange={(e) => setNewContact({ ...newContact, email: e.target.value })}
-                        />
-                      </div>
-                      <Button 
-                        type="submit" 
-                        className="w-full bg-green-500 hover:bg-green-600"
-                      >
-                        Salvar Contato
+                  )}
+                  <Dialog open={isAddingContact} onOpenChange={(open) => {
+                    setIsAddingContact(open);
+                    if (!open) setEditingContact(null);
+                  }}>
+                    <DialogTrigger asChild>
+                      <Button size="sm" className="bg-green-500 hover:bg-green-600">
+                        <Plus className="w-4 h-4 mr-2" />
+                        Adicionar Contato
                       </Button>
-                    </form>
-                  </DialogContent>
-                </Dialog>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>{editingContact ? "Editar Contato" : "Adicionar Novo Contato"}</DialogTitle>
+                        <DialogDescription>Preencha os dados do contato abaixo</DialogDescription>
+                      </DialogHeader>
+                      <ContactForm
+                        contact={editingContact}
+                        onSuccess={() => {
+                          showSuccess(editingContact ? "Contato atualizado com sucesso!" : "Contato adicionado com sucesso!");
+                          setIsAddingContact(false);
+                          setEditingContact(null);
+                          loadData();
+                        }}
+                        onError={showError}
+                      />
+                    </DialogContent>
+                  </Dialog>
+                </div>
               </CardHeader>
               <CardContent>
-                {contacts.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
-                    <User className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                    <p>Nenhum contato cadastrado</p>
-                    <p className="text-sm">Clique no botão acima para adicionar</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {contacts.map((contact) => (
-                      <div
-                        key={contact.id}
-                        className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                            <User className="w-5 h-5 text-green-600" />
-                          </div>
-                          <div>
-                            <p className="font-medium">{contact.name}</p>
-                            <div className="flex items-center gap-3 text-sm text-gray-500">
-                              <span className="flex items-center gap-1">
-                                <Phone className="w-3 h-3" />
-                                {contact.phone}
-                              </span>
-                              {contact.email && (
-                                <span className="flex items-center gap-1">
-                                  <Mail className="w-3 h-3" />
-                                  {contact.email}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteContact(contact.id)}
-                          className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                <div className="flex gap-2 mb-4">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => contactsApi.exportCSV()}
+                    className="text-blue-600 border-blue-300 hover:bg-blue-50"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Exportar CSV
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => document.getElementById('csv-import-input')?.click()}
+                    className="text-green-600 border-green-300 hover:bg-green-50"
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    Importar CSV
+                  </Button>
+                  <input
+                    id="csv-import-input"
+                    type="file"
+                    accept=".csv"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      
+                      const reader = new FileReader();
+                      reader.onload = async (event) => {
+                        try {
+                          const csvContent = event.target?.result as string;
+                          const result = await contactsApi.importCSV(csvContent);
+                          showSuccess(
+                            `Importação concluída: ${result.success} contatos importados, ${result.failed} falharam`
+                          );
+                          loadData();
+                        } catch (err: any) {
+                          showError(err.message || "Erro ao importar CSV");
+                        }
+                      };
+                      reader.readAsText(file);
+                      e.target.value = '';
+                    }}
+                  />
+                </div>
+                <ContactsList 
+                  contacts={contacts} 
+                  onDelete={(id) => openDeleteModal(id, "contact")}
+                  onEdit={(contact) => {
+                    setEditingContact(contact);
+                    setIsAddingContact(true);
+                  }}
+                />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Templates Tab */}
+          <TabsContent value="templates" className="space-y-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Meus Templates</CardTitle>
+                <div className="flex gap-2">
+                  {templates.length > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setDeleteAllType("templates")}
+                      className="text-red-600 border-red-300 hover:bg-red-50"
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Deletar Todos
+                    </Button>
+                  )}
+                  <Dialog open={isAddingTemplate} onOpenChange={(open) => {
+                    setIsAddingTemplate(open);
+                    if (!open) setEditingTemplate(null);
+                  }}>
+                    <DialogTrigger asChild>
+                      <Button size="sm" className="bg-green-500 hover:bg-green-600">
+                        <Plus className="w-4 h-4 mr-2" />
+                        Novo Template
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>{editingTemplate ? "Editar Template" : "Criar Novo Template"}</DialogTitle>
+                        <DialogDescription>
+                          {editingTemplate ? "Altere os dados do template abaixo" : "Crie um modelo de mensagem para reuse"}
+                        </DialogDescription>
+                      </DialogHeader>
+                      <TemplateForm
+                        template={editingTemplate}
+                        onSuccess={(msg) => {
+                          showSuccess(msg);
+                          setIsAddingTemplate(false);
+                          setEditingTemplate(null);
+                          loadData();
+                        }}
+                        onError={showError}
+                        onCancel={() => {
+                          setIsAddingTemplate(false);
+                          setEditingTemplate(null);
+                        }}
+                      />
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <TemplatesList
+                  templates={templates}
+                  onDelete={(id) => openDeleteModal(id, "template")}
+                  onEdit={(template) => {
+                    setEditingTemplate(template);
+                    setIsAddingTemplate(true);
+                  }}
+                />
               </CardContent>
             </Card>
           </TabsContent>
         </Tabs>
+
+        {/* Delete Item Modal */}
+        <ConfirmDialog
+          open={!!itemToDelete}
+          onOpenChange={(open) => !open && setItemToDelete(null)}
+          title="Confirmar Exclusão"
+          description={`Tem certeza que deseja excluir este ${deleteType === "contact" ? "contato" : deleteType === "message" ? "mensagem" : "template"}? Esta ação não pode ser desfeita.`}
+          onConfirm={handleDelete}
+          isLoading={isDeleting}
+          confirmText="Excluir"
+        />
+
+        {/* Delete All Modal */}
+        <ConfirmDialog
+          open={!!deleteAllType}
+          onOpenChange={(open) => !open && setDeleteAllType(null)}
+          title={`⚠️ Excluir Todos os ${deleteAllType === "contacts" ? "Contatos" : deleteAllType === "messages" ? "Mensagens" : "Templates"}`}
+          description={`ATENÇÃO: Esta ação excluirá permanentemente todos os seus ${deleteAllType === "contacts" ? contacts.length : deleteAllType === "messages" ? messages.length : templates.length} ${deleteAllType === "contacts" ? "contatos" : deleteAllType === "messages" ? "mensagens" : "templates"}. Esta ação não pode ser desfeita.`}
+          onConfirm={handleDeleteAll}
+          isLoading={isDeletingAll}
+          confirmText="Excluir Todos"
+          variant="danger"
+        />
       </main>
     </div>
   );

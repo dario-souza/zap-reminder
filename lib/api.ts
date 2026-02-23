@@ -72,6 +72,40 @@ export const contactsApi = {
     apiFetch(`/contacts/${id}`, {
       method: 'DELETE',
     }),
+
+  deleteAll: () =>
+    apiFetch('/contacts', {
+      method: 'DELETE',
+    }),
+
+  exportCSV: async () => {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${API_URL}/contacts/export`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error('Erro ao exportar contatos');
+    }
+    
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'contatos.csv';
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  },
+
+  importCSV: async (csvContent: string) =>
+    apiFetch('/contacts/import', {
+      method: 'POST',
+      body: JSON.stringify({ csvContent }),
+    }),
 };
 
 export const messagesApi = {
@@ -84,6 +118,29 @@ export const messagesApi = {
       body: JSON.stringify(data),
     }),
 
+  createBulk: (data: {
+    content: string;
+    contactIds: string[];
+    scheduledAt?: string;
+    sendNow?: boolean;
+    recurrenceType?: 'NONE' | 'MONTHLY';
+  }) =>
+    apiFetch('/messages/bulk', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  createWithReminder: (data: {
+    content: string;
+    contactId: string;
+    scheduledAt: string;
+    reminderDays: 1 | 2;
+  }) =>
+    apiFetch('/messages/with-reminder', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
   sendNow: (id: string) =>
     apiFetch(`/messages/${id}/send`, {
       method: 'POST',
@@ -91,6 +148,11 @@ export const messagesApi = {
 
   delete: (id: string) =>
     apiFetch(`/messages/${id}`, {
+      method: 'DELETE',
+    }),
+
+  deleteAll: () =>
+    apiFetch('/messages', {
       method: 'DELETE',
     }),
 
@@ -126,24 +188,29 @@ export const messagesApi = {
     }),
 };
 
-export const confirmationsApi = {
+export const templatesApi = {
   getAll: () =>
-    apiFetch('/confirmations'),
+    apiFetch('/templates'),
 
-  create: (data: { contactName: string; contactPhone: string; eventDate: string; messageContent?: string }) =>
-    apiFetch('/confirmations', {
+  create: (data: { name: string; content: string }) =>
+    apiFetch('/templates', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
 
-  updateStatus: (id: string, status: 'CONFIRMED' | 'DENIED', response?: string) =>
-    apiFetch(`/confirmations/${id}`, {
+  update: (id: string, data: { name?: string; content?: string }) =>
+    apiFetch(`/templates/${id}`, {
       method: 'PUT',
-      body: JSON.stringify({ status, response }),
+      body: JSON.stringify(data),
     }),
 
   delete: (id: string) =>
-    apiFetch(`/confirmations/${id}`, {
+    apiFetch(`/templates/${id}`, {
+      method: 'DELETE',
+    }),
+
+  deleteAll: () =>
+    apiFetch('/templates', {
       method: 'DELETE',
     }),
 };
