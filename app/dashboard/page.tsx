@@ -7,8 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { authApi, contactsApi, messagesApi } from "@/lib/api";
-import { MessageCircle, User, LogOut, Plus, Phone, Mail, Trash2, AlertCircle, CheckCircle2, Send, Clock, Calendar, CheckCheck, AlertTriangle, Smartphone, RefreshCw, Link2, Unlink } from "lucide-react";
+import { authApi, contactsApi, messagesApi, confirmationsApi } from "@/lib/api";
+import { MessageCircle, User, LogOut, Plus, Phone, Mail, Trash2, AlertCircle, CheckCircle2, Send, Clock, Calendar, CheckCheck, AlertTriangle, Smartphone, RefreshCw, Link2, Unlink, Bell, X, Check, XCircle } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -57,10 +57,23 @@ interface Message {
   };
 }
 
+interface Confirmation {
+  id: string;
+  status: 'PENDING' | 'CONFIRMED' | 'DENIED';
+  contactName: string;
+  contactPhone: string;
+  eventDate: string;
+  messageContent?: string;
+  response?: string;
+  respondedAt?: string;
+  createdAt: string;
+}
+
 export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [confirmations, setConfirmations] = useState<Confirmation[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAddingContact, setIsAddingContact] = useState(false);
   const [isAddingMessage, setIsAddingMessage] = useState(false);
@@ -101,12 +114,14 @@ export default function DashboardPage() {
 
   const loadData = async () => {
     try {
-      const [contactsData, messagesData] = await Promise.all([
+      const [contactsData, messagesData, confirmationsData] = await Promise.all([
         contactsApi.getAll(),
         messagesApi.getAll(),
+        confirmationsApi.getAll(),
       ]);
       setContacts(contactsData);
       setMessages(messagesData);
+      setConfirmations(confirmationsData);
     } catch (error: any) {
       console.error("Erro ao carregar dados:", error);
     } finally {
@@ -593,6 +608,8 @@ export default function DashboardPage() {
         <Tabs defaultValue="messages" className="space-y-6">
           <TabsList>
             <TabsTrigger value="messages">Mensagens</TabsTrigger>
+            <TabsTrigger value="reminders">Lembretes</TabsTrigger>
+            <TabsTrigger value="confirmations">Confirmações</TabsTrigger>
             <TabsTrigger value="contacts">Contatos</TabsTrigger>
           </TabsList>
 
@@ -778,6 +795,133 @@ export default function DashboardPage() {
                               <Trash2 className="w-4 h-4" />
                             </Button>
                           </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="reminders" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Lembretes</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
+                  <p className="text-amber-800 text-sm">
+                    <Bell className="w-4 h-4 inline mr-2" />
+                    Crie lembretes para seus contatos. A mensagem será enviada X dias antes do evento.
+                    O contato poderá confirmar presença respondendo "sim" ou "não".
+                  </p>
+                </div>
+                <div className="text-center py-8 text-gray-500">
+                  <Bell className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                  <p>Funcionalidade em desenvolvimento</p>
+                  <p className="text-sm">Em breve você poderá criar lembretes aqui</p>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="confirmations" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Confirmações de Presença</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {confirmations.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <CheckCircle2 className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                    <p>Nenhuma confirmação registrada</p>
+                    <p className="text-sm">As confirmações aparecerão aqui quando seus contatos responderem</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {confirmations.map((confirmation) => (
+                      <div
+                        key={confirmation.id}
+                        className={`p-4 rounded-lg border-2 ${
+                          confirmation.status === 'CONFIRMED' 
+                            ? 'bg-green-50 border-green-200' 
+                            : confirmation.status === 'DENIED'
+                            ? 'bg-red-50 border-red-200'
+                            : 'bg-yellow-50 border-yellow-200'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                              confirmation.status === 'CONFIRMED' 
+                                ? 'bg-green-100' 
+                                : confirmation.status === 'DENIED'
+                                ? 'bg-red-100'
+                                : 'bg-yellow-100'
+                            }`}>
+                              {confirmation.status === 'CONFIRMED' ? (
+                                <Check className="w-5 h-5 text-green-600" />
+                              ) : confirmation.status === 'DENIED' ? (
+                                <XCircle className="w-5 h-5 text-red-600" />
+                              ) : (
+                                <Bell className="w-5 h-5 text-yellow-600" />
+                              )}
+                            </div>
+                            <div>
+                              <p className="font-medium">{confirmation.contactName}</p>
+                              <p className="text-sm text-gray-500">{confirmation.contactPhone}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              confirmation.status === 'CONFIRMED' 
+                                ? 'bg-green-100 text-green-700' 
+                                : confirmation.status === 'DENIED'
+                                ? 'bg-red-100 text-red-700'
+                                : 'bg-yellow-100 text-yellow-700'
+                            }`}>
+                              {confirmation.status === 'CONFIRMED' ? 'Confirmado' : 
+                               confirmation.status === 'DENIED' ? 'Cancelado' : 'Pendente'}
+                            </span>
+                            {confirmation.status !== 'PENDING' && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={async () => {
+                                  if (!confirm("Tem certeza que deseja excluir esta confirmação?")) return;
+                                  try {
+                                    await confirmationsApi.delete(confirmation.id);
+                                    loadData();
+                                  } catch (err: any) {
+                                    setError(err.message || "Erro ao excluir confirmação");
+                                  }
+                                }}
+                                className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                        <div className="mt-3 pt-3 border-t border-gray-200">
+                          <div className="flex items-center gap-4 text-sm">
+                            <span className="flex items-center gap-1 text-gray-600">
+                              <Calendar className="w-4 h-4" />
+                              Evento: {new Date(confirmation.eventDate).toLocaleDateString('pt-BR')}
+                            </span>
+                            {confirmation.respondedAt && (
+                              <span className="flex items-center gap-1 text-gray-500">
+                                <CheckCheck className="w-4 h-4" />
+                                Respondido em: {new Date(confirmation.respondedAt).toLocaleDateString('pt-BR')}
+                              </span>
+                            )}
+                          </div>
+                          {confirmation.response && (
+                            <p className="mt-2 text-sm text-gray-600 bg-white p-2 rounded">
+                              <span className="font-medium">Resposta:</span> {confirmation.response}
+                            </p>
+                          )}
                         </div>
                       </div>
                     ))}

@@ -125,3 +125,25 @@ export const messagesApi = {
       body: JSON.stringify({ action }),
     }),
 };
+
+export const confirmationsApi = {
+  getAll: () =>
+    apiFetch('/confirmations'),
+
+  create: (data: { contactName: string; contactPhone: string; eventDate: string; messageContent?: string }) =>
+    apiFetch('/confirmations', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  updateStatus: (id: string, status: 'CONFIRMED' | 'DENIED', response?: string) =>
+    apiFetch(`/confirmations/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ status, response }),
+    }),
+
+  delete: (id: string) =>
+    apiFetch(`/confirmations/${id}`, {
+      method: 'DELETE',
+    }),
+};
