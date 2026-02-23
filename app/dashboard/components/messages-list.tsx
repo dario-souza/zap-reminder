@@ -11,6 +11,7 @@ import {
   Clock,
   AlertTriangle,
   Repeat,
+  Bell,
 } from "lucide-react";
 
 interface Message {
@@ -22,6 +23,8 @@ interface Message {
   deliveredAt?: string;
   readAt?: string;
   recurrenceType?: "NONE" | "MONTHLY";
+  isReminder?: boolean;
+  reminderDays?: number;
   contact: {
     name: string;
     phone: string;
@@ -81,6 +84,12 @@ export function MessagesList({ messages, onDelete, onSendNow }: MessagesListProp
                   <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700">
                     <Repeat className="w-3 h-3" />
                     Mensal
+                  </span>
+                )}
+                {message.isReminder && (
+                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
+                    <Bell className="w-3 h-3" />
+                    Lembrete
                   </span>
                 )}
               </div>
