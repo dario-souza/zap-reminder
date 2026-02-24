@@ -7,3 +7,4 @@ export { StatsCards } from "./stats-cards";
 export { TemplateForm } from "./template-form";
 export { TemplatesList } from "./templates-list";
 export { ReminderForm } from "./reminder-form";
+export { ConfirmationsList } from "./confirmations-list";

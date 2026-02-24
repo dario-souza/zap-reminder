@@ -214,3 +214,25 @@ export const templatesApi = {
       method: 'DELETE',
     }),
 };
+
+export const confirmationsApi = {
+  getAll: () =>
+    apiFetch('/confirmations'),
+
+  create: (data: { contactName: string; contactPhone: string; eventDate: string; messageContent?: string }) =>
+    apiFetch('/confirmations', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  update: (id: string, data: { status: 'CONFIRMED' | 'DENIED'; response?: string }) =>
+    apiFetch(`/confirmations/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  delete: (id: string) =>
+    apiFetch(`/confirmations/${id}`, {
+      method: 'DELETE',
+    }),
+};

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { authApi, contactsApi, messagesApi, templatesApi } from "@/lib/api";
+import { authApi, contactsApi, messagesApi, templatesApi, confirmationsApi } from "@/lib/api";
 import {
   MessageCircle,
   User,
@@ -44,6 +44,7 @@ import {
   TemplateForm,
   TemplatesList,
   ReminderForm,
+  ConfirmationsList,
 } from "./components";
 
 interface User {
@@ -85,13 +86,26 @@ interface Template {
   updatedAt: string;
 }
 
+interface Confirmation {
+  id: string;
+  status: "PENDING" | "CONFIRMED" | "DENIED";
+  contactName: string;
+  contactPhone: string;
+  eventDate: string;
+  messageContent?: string;
+  response?: string;
+  respondedAt?: string;
+  createdAt: string;
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
-  const scheduledMessages = messages.filter((m) => m.status === "SCHEDULED" && m.isReminder !== true);
+const scheduledMessages = messages.filter((m) => m.status === "SCHEDULED" && m.isReminder !== true);
   const [templates, setTemplates] = useState<Template[]>([]);
+  const [confirmations, setConfirmations] = useState<Confirmation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -104,9 +118,9 @@ export default function DashboardPage() {
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
   const [isQRCodeModalOpen, setIsQRCodeModalOpen] = useState(false);
 
-  // Estados de confirmação
+// Estados de confirmação
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
-  const [deleteType, setDeleteType] = useState<"contact" | "message" | "template" | null>(null);
+  const [deleteType, setDeleteType] = useState<"contact" | "message" | "template" | "confirmation" | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteAllType, setDeleteAllType] = useState<"contacts" | "messages" | "templates" | null>(null);
   const [isDeletingAll, setIsDeletingAll] = useState(false);
@@ -121,7 +135,7 @@ export default function DashboardPage() {
   // Cron
   const [cronStatus, setCronStatus] = useState<any>(null);
 
-  useEffect(() => {
+useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) {
       router.push("/");
@@ -136,18 +150,27 @@ export default function DashboardPage() {
     loadData();
     checkWhatsappConnection();
     checkCronStatus();
+
+    // Atualiza confirmações a cada 10 segundos
+    const interval = setInterval(() => {
+      confirmationsApi.getAll().then(setConfirmations).catch(console.error);
+    }, 10000);
+
+    return () => clearInterval(interval);
   }, [router]);
 
-  const loadData = async () => {
+const loadData = async () => {
     try {
-      const [contactsData, messagesData, templatesData] = await Promise.all([
+      const [contactsData, messagesData, templatesData, confirmationsData] = await Promise.all([
         contactsApi.getAll(),
         messagesApi.getAll(),
         templatesApi.getAll(),
+        confirmationsApi.getAll(),
       ]);
       setContacts(contactsData);
       setMessages(messagesData);
       setTemplates(templatesData);
+      setConfirmations(confirmationsData);
     } catch (error: any) {
       console.error("Erro ao carregar dados:", error);
     } finally {
@@ -215,12 +238,12 @@ export default function DashboardPage() {
     }
   };
 
-  const openDeleteModal = (id: string, type: "contact" | "message" | "template") => {
+const openDeleteModal = (id: string, type: "contact" | "message" | "template" | "confirmation") => {
     setItemToDelete(id);
     setDeleteType(type);
   };
 
-  const handleDelete = async () => {
+const handleDelete = async () => {
     if (!itemToDelete || !deleteType) return;
     setIsDeleting(true);
 
@@ -234,12 +257,15 @@ export default function DashboardPage() {
       } else if (deleteType === "template") {
         await templatesApi.delete(itemToDelete);
         showSuccess("Template excluído com sucesso!");
+      } else if (deleteType === "confirmation") {
+        await confirmationsApi.delete(itemToDelete);
+        showSuccess("Confirmação excluída com sucesso!");
       }
       setItemToDelete(null);
       setDeleteType(null);
       loadData();
     } catch (err: any) {
-      showError(err.message || `Erro ao excluir ${deleteType === "contact" ? "contato" : deleteType === "message" ? "mensagem" : "template"}`);
+      showError(err.message || `Erro ao excluir ${deleteType === "contact" ? "contato" : deleteType === "message" ? "mensagem" : deleteType === "template" ? "template" : "confirmação"}`);
     } finally {
       setIsDeleting(false);
     }
@@ -521,10 +547,11 @@ export default function DashboardPage() {
         />
 
         <Tabs defaultValue="messages" className="space-y-6">
-          <TabsList>
+<TabsList>
             <TabsTrigger value="messages">Mensagens</TabsTrigger>
             <TabsTrigger value="scheduled">Agendamentos</TabsTrigger>
             <TabsTrigger value="reminders">Lembretes</TabsTrigger>
+            <TabsTrigger value="confirmations">Confirmações</TabsTrigger>
             <TabsTrigger value="contacts">Contatos</TabsTrigger>
             <TabsTrigger value="templates">Templates</TabsTrigger>
           </TabsList>
@@ -645,10 +672,28 @@ export default function DashboardPage() {
                   </DialogContent>
                 </Dialog>
 
-                <MessagesList
+<MessagesList
                   messages={messages.filter((m) => m.isReminder === true)}
                   onDelete={(id) => openDeleteModal(id, "message")}
                   onSendNow={handleSendNow}
+                />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Confirmations Tab */}
+          <TabsContent value="confirmations" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CheckCircle2 className="w-5 h-5" />
+                  Confirmações de Comparecimento
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ConfirmationsList
+                  confirmations={confirmations}
+                  onDelete={(id) => openDeleteModal(id, "confirmation")}
                 />
               </CardContent>
             </Card>
@@ -830,7 +875,7 @@ export default function DashboardPage() {
           open={!!itemToDelete}
           onOpenChange={(open) => !open && setItemToDelete(null)}
           title="Confirmar Exclusão"
-          description={`Tem certeza que deseja excluir este ${deleteType === "contact" ? "contato" : deleteType === "message" ? "mensagem" : "template"}? Esta ação não pode ser desfeita.`}
+          description={`Tem certeza que deseja excluir este ${deleteType === "contact" ? "contato" : deleteType === "message" ? "mensagem" : deleteType === "template" ? "template" : "confirmação"}? Esta ação não pode ser desfeita.`}
           onConfirm={handleDelete}
           isLoading={isDeleting}
           confirmText="Excluir"
