@@ -1,11 +1,17 @@
-"use client";
+'use client'
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { authApi, contactsApi, messagesApi, templatesApi, confirmationsApi } from "@/lib/api";
+import { ChangeEvent, useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import {
+  authApi,
+  contactsApi,
+  messagesApi,
+  templatesApi,
+  confirmationsApi,
+} from '@/lib/api'
 import {
   MessageCircle,
   User,
@@ -23,7 +29,8 @@ import {
   Download,
   Upload,
   Bell,
-} from "lucide-react";
+  Search,
+} from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -31,9 +38,9 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { QRCodeModal } from "@/components/whatsapp/qrcode-modal";
+} from '@/components/ui/dialog'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { QRCodeModal } from '@/components/whatsapp/qrcode-modal'
 import {
   ConfirmDialog,
   ContactForm,
@@ -45,281 +52,339 @@ import {
   TemplatesList,
   ReminderForm,
   ConfirmationsList,
-} from "./components";
+} from './components'
 
 interface User {
-  id: string;
-  name: string;
-  email: string;
+  id: string
+  name: string
+  email: string
 }
 
 interface Contact {
-  id: string;
-  name: string;
-  phone: string;
-  email?: string;
+  id: string
+  name: string
+  phone: string
+  email?: string
 }
 
 interface Message {
-  id: string;
-  content: string;
-  status: "PENDING" | "SENT" | "DELIVERED" | "READ" | "FAILED" | "SCHEDULED";
-  scheduledAt?: string;
-  sentAt?: string;
-  deliveredAt?: string;
-  readAt?: string;
-  recurrenceType?: "NONE" | "MONTHLY";
-  reminderDays?: number;
-  isReminder?: boolean;
-  contactIds?: string[];
+  id: string
+  content: string
+  status: 'PENDING' | 'SENT' | 'DELIVERED' | 'READ' | 'FAILED' | 'SCHEDULED'
+  scheduledAt?: string
+  sentAt?: string
+  deliveredAt?: string
+  readAt?: string
+  recurrenceType?: 'NONE' | 'MONTHLY'
+  reminderDays?: number
+  isReminder?: boolean
+  contactIds?: string[]
   contact: {
-    name: string;
-    phone: string;
-  };
+    name: string
+    phone: string
+  }
 }
 
 interface Template {
-  id: string;
-  name: string;
-  content: string;
-  createdAt: string;
-  updatedAt: string;
+  id: string
+  name: string
+  content: string
+  createdAt: string
+  updatedAt: string
 }
 
 interface Confirmation {
-  id: string;
-  status: "PENDING" | "CONFIRMED" | "DENIED";
-  contactName: string;
-  contactPhone: string;
-  eventDate: string;
-  messageContent?: string;
-  response?: string;
-  respondedAt?: string;
-  createdAt: string;
+  id: string
+  status: 'PENDING' | 'CONFIRMED' | 'DENIED'
+  contactName: string
+  contactPhone: string
+  eventDate: string
+  messageContent?: string
+  response?: string
+  respondedAt?: string
+  createdAt: string
 }
 
 export default function DashboardPage() {
-  const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
-  const [contacts, setContacts] = useState<Contact[]>([]);
-  const [messages, setMessages] = useState<Message[]>([]);
-const scheduledMessages = messages.filter((m) => m.status === "SCHEDULED" && m.isReminder !== true);
-  const [templates, setTemplates] = useState<Template[]>([]);
-  const [confirmations, setConfirmations] = useState<Confirmation[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const router = useRouter()
+  const [user, setUser] = useState<User | null>(null)
+  const [contacts, setContacts] = useState<Contact[]>([])
+  const [messages, setMessages] = useState<Message[]>([])
+  const scheduledMessages = messages.filter(
+    (m) => m.status === 'SCHEDULED' && m.isReminder !== true,
+  )
+  const [templates, setTemplates] = useState<Template[]>([])
+  const [confirmations, setConfirmations] = useState<Confirmation[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
 
   // Modais
-  const [isAddingContact, setIsAddingContact] = useState(false);
-  const [editingContact, setEditingContact] = useState<Contact | null>(null);
-  const [isAddingMessage, setIsAddingMessage] = useState(false);
-  const [isAddingTemplate, setIsAddingTemplate] = useState(false);
-  const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
-  const [isQRCodeModalOpen, setIsQRCodeModalOpen] = useState(false);
+  const [isAddingContact, setIsAddingContact] = useState(false)
+  const [editingContact, setEditingContact] = useState<Contact | null>(null)
+  const [isAddingMessage, setIsAddingMessage] = useState(false)
+  const [isAddingTemplate, setIsAddingTemplate] = useState(false)
+  const [editingTemplate, setEditingTemplate] = useState<Template | null>(null)
+  const [isQRCodeModalOpen, setIsQRCodeModalOpen] = useState(false)
 
-// Estados de confirmação
-  const [itemToDelete, setItemToDelete] = useState<string | null>(null);
-  const [deleteType, setDeleteType] = useState<"contact" | "message" | "template" | "confirmation" | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [deleteAllType, setDeleteAllType] = useState<"contacts" | "messages" | "templates" | null>(null);
-  const [isDeletingAll, setIsDeletingAll] = useState(false);
+  // Estados de confirmação
+  const [itemToDelete, setItemToDelete] = useState<string | null>(null)
+  const [deleteType, setDeleteType] = useState<
+    'contact' | 'message' | 'template' | 'confirmation' | null
+  >(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteAllType, setDeleteAllType] = useState<
+    'contacts' | 'messages' | 'templates' | null
+  >(null)
+  const [isDeletingAll, setIsDeletingAll] = useState(false)
 
   // WhatsApp
-  const [whatsappStatus, setWhatsappStatus] = useState<any>(null);
-  const [isCheckingWhatsapp, setIsCheckingWhatsapp] = useState(false);
-  const [testPhone, setTestPhone] = useState("");
-  const [testMessage, setTestMessage] = useState("");
-  const [isSendingTest, setIsSendingTest] = useState(false);
+  const [whatsappStatus, setWhatsappStatus] = useState<any>(null)
+  const [isCheckingWhatsapp, setIsCheckingWhatsapp] = useState(false)
+  const [testPhone, setTestPhone] = useState('')
+  const [testMessage, setTestMessage] = useState('')
+  const [isSendingTest, setIsSendingTest] = useState(false)
 
   // Cron
-  const [cronStatus, setCronStatus] = useState<any>(null);
+  const [cronStatus, setCronStatus] = useState<any>(null)
 
-useEffect(() => {
-    const token = localStorage.getItem("token");
+  // Busca
+  const [searchTermContacts, setSearchTermContacts] = useState('')
+
+  const filteredContacts = useMemo(() => {
+    if (!searchTermContacts) return contacts
+    const term = searchTermContacts.toLowerCase()
+    return contacts.filter(
+      (contact) =>
+        contact.name.toLowerCase().includes(term) ||
+        contact.phone.includes(term) ||
+        (contact.email && contact.email.toLowerCase().includes(term)),
+    )
+  }, [contacts, searchTermContacts])
+
+  useEffect(() => {
+    const token = localStorage.getItem('token')
     if (!token) {
-      router.push("/");
-      return;
+      router.push('/')
+      return
     }
 
-    const userData = localStorage.getItem("user");
+    const userData = localStorage.getItem('user')
     if (userData) {
-      setUser(JSON.parse(userData));
+      setUser(JSON.parse(userData))
     }
 
-    loadData();
-    checkWhatsappConnection();
-    checkCronStatus();
+    loadData()
+    checkWhatsappConnection()
+    checkCronStatus()
 
     // Atualiza confirmações a cada 10 segundos
     const interval = setInterval(() => {
-      confirmationsApi.getAll().then(setConfirmations).catch(console.error);
-    }, 10000);
+      confirmationsApi.getAll().then(setConfirmations).catch(console.error)
+    }, 10000)
 
-    return () => clearInterval(interval);
-  }, [router]);
+    return () => clearInterval(interval)
+  }, [router])
 
-const loadData = async () => {
+  const loadData = async () => {
     try {
-      const [contactsData, messagesData, templatesData, confirmationsData] = await Promise.all([
-        contactsApi.getAll(),
-        messagesApi.getAll(),
-        templatesApi.getAll(),
-        confirmationsApi.getAll(),
-      ]);
-      setContacts(contactsData);
-      setMessages(messagesData);
-      setTemplates(templatesData);
-      setConfirmations(confirmationsData);
+      const [contactsData, messagesData, templatesData, confirmationsData] =
+        await Promise.all([
+          contactsApi.getAll(),
+          messagesApi.getAll(),
+          templatesApi.getAll(),
+          confirmationsApi.getAll(),
+        ])
+      setContacts(contactsData)
+      setMessages(messagesData)
+      setTemplates(templatesData)
+      setConfirmations(confirmationsData)
     } catch (error: any) {
-      console.error("Erro ao carregar dados:", error);
+      console.error('Erro ao carregar dados:', error)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   const checkWhatsappConnection = async () => {
-    setIsCheckingWhatsapp(true);
+    setIsCheckingWhatsapp(true)
     try {
-      const status = await messagesApi.checkWhatsAppStatus();
-      setWhatsappStatus(status);
+      const status = await messagesApi.checkWhatsAppStatus()
+      setWhatsappStatus(status)
     } catch (error: any) {
-      console.error("Erro ao verificar WhatsApp:", error);
-      setWhatsappStatus({ connected: false, configured: false });
+      console.error('Erro ao verificar WhatsApp:', error)
+      setWhatsappStatus({ connected: false, configured: false })
     } finally {
-      setIsCheckingWhatsapp(false);
+      setIsCheckingWhatsapp(false)
     }
-  };
+  }
 
   const checkCronStatus = async () => {
     try {
-      const status = await messagesApi.getCronStatus();
-      setCronStatus(status);
+      const status = await messagesApi.getCronStatus()
+      setCronStatus(status)
     } catch (error: any) {
-      console.error("Erro ao verificar status do cron:", error);
+      console.error('Erro ao verificar status do cron:', error)
     }
-  };
+  }
 
   const showSuccess = (message: string) => {
-    setSuccess(message);
-    setTimeout(() => setSuccess(null), 3000);
-  };
+    setSuccess(message)
+    setTimeout(() => setSuccess(null), 3000)
+  }
 
   const showError = (message: string) => {
-    setError(message);
-    setTimeout(() => setError(null), 3000);
-  };
+    setError(message)
+    setTimeout(() => setError(null), 3000)
+  }
 
   const handleLogout = async () => {
     try {
-      await authApi.logout();
+      await authApi.logout()
     } catch (error) {
-      console.error("Erro ao fazer logout:", error);
+      console.error('Erro ao fazer logout:', error)
     } finally {
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-      router.push("/");
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
+      router.push('/')
     }
-  };
+  }
 
   const handleSendTestMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSendingTest(true);
+    e.preventDefault()
+    setIsSendingTest(true)
 
     try {
-      await messagesApi.sendTestMessage(testPhone, testMessage || "Teste ZapReminder! 🚀");
-      showSuccess("Mensagem de teste enviada com sucesso!");
-      setTestPhone("");
-      setTestMessage("");
+      await messagesApi.sendTestMessage(
+        testPhone,
+        testMessage || 'Teste ZapReminder! 🚀',
+      )
+      showSuccess('Mensagem de teste enviada com sucesso!')
+      setTestPhone('')
+      setTestMessage('')
     } catch (err: any) {
-      showError(err.message || "Erro ao enviar mensagem de teste");
+      showError(err.message || 'Erro ao enviar mensagem de teste')
     } finally {
-      setIsSendingTest(false);
+      setIsSendingTest(false)
     }
-  };
+  }
 
-const openDeleteModal = (id: string, type: "contact" | "message" | "template" | "confirmation") => {
-    setItemToDelete(id);
-    setDeleteType(type);
-  };
+  const openDeleteModal = (
+    id: string,
+    type: 'contact' | 'message' | 'template' | 'confirmation',
+  ) => {
+    setItemToDelete(id)
+    setDeleteType(type)
+  }
 
-const handleDelete = async () => {
-    if (!itemToDelete || !deleteType) return;
-    setIsDeleting(true);
+  const handleDelete = async () => {
+    if (!itemToDelete || !deleteType) return
+    setIsDeleting(true)
 
     try {
-      if (deleteType === "contact") {
-        await contactsApi.delete(itemToDelete);
-        showSuccess("Contato excluído com sucesso!");
-      } else if (deleteType === "message") {
-        await messagesApi.delete(itemToDelete);
-        showSuccess("Mensagem excluída com sucesso!");
-      } else if (deleteType === "template") {
-        await templatesApi.delete(itemToDelete);
-        showSuccess("Template excluído com sucesso!");
-      } else if (deleteType === "confirmation") {
-        await confirmationsApi.delete(itemToDelete);
-        showSuccess("Confirmação excluída com sucesso!");
+      if (deleteType === 'contact') {
+        await contactsApi.delete(itemToDelete)
+        showSuccess('Contato excluído com sucesso!')
+      } else if (deleteType === 'message') {
+        await messagesApi.delete(itemToDelete)
+        showSuccess('Mensagem excluída com sucesso!')
+      } else if (deleteType === 'template') {
+        await templatesApi.delete(itemToDelete)
+        showSuccess('Template excluído com sucesso!')
+      } else if (deleteType === 'confirmation') {
+        await confirmationsApi.delete(itemToDelete)
+        showSuccess('Confirmação excluída com sucesso!')
       }
-      setItemToDelete(null);
-      setDeleteType(null);
-      loadData();
+      setItemToDelete(null)
+      setDeleteType(null)
+      loadData()
     } catch (err: any) {
-      showError(err.message || `Erro ao excluir ${deleteType === "contact" ? "contato" : deleteType === "message" ? "mensagem" : deleteType === "template" ? "template" : "confirmação"}`);
+      showError(
+        err.message ||
+          `Erro ao excluir ${deleteType === 'contact' ? 'contato' : deleteType === 'message' ? 'mensagem' : deleteType === 'template' ? 'template' : 'confirmação'}`,
+      )
     } finally {
-      setIsDeleting(false);
+      setIsDeleting(false)
     }
-  };
+  }
 
   const handleDeleteAll = async () => {
-    if (!deleteAllType) return;
-    setIsDeletingAll(true);
+    if (!deleteAllType) return
+    setIsDeletingAll(true)
 
     try {
-      if (deleteAllType === "contacts") {
-        await contactsApi.deleteAll();
-        showSuccess("Todos os contatos foram excluídos com sucesso!");
-      } else if (deleteAllType === "messages") {
-        await messagesApi.deleteAll();
-        showSuccess("Todas as mensagens foram excluídas com sucesso!");
-      } else if (deleteAllType === "templates") {
-        await templatesApi.deleteAll();
-        showSuccess("Todos os templates foram excluídos com sucesso!");
+      if (deleteAllType === 'contacts') {
+        await contactsApi.deleteAll()
+        showSuccess('Todos os contatos foram excluídos com sucesso!')
+      } else if (deleteAllType === 'messages') {
+        await messagesApi.deleteAll()
+        showSuccess('Todas as mensagens foram excluídas com sucesso!')
+      } else if (deleteAllType === 'templates') {
+        await templatesApi.deleteAll()
+        showSuccess('Todos os templates foram excluídos com sucesso!')
       }
-      setDeleteAllType(null);
-      loadData();
+      setDeleteAllType(null)
+      loadData()
     } catch (err: any) {
-      showError(err.message || `Erro ao excluir ${deleteAllType === "contacts" ? "contatos" : deleteAllType === "messages" ? "mensagens" : "templates"}`);
+      showError(
+        err.message ||
+          `Erro ao excluir ${deleteAllType === 'contacts' ? 'contatos' : deleteAllType === 'messages' ? 'mensagens' : 'templates'}`,
+      )
     } finally {
-      setIsDeletingAll(false);
+      setIsDeletingAll(false)
     }
-  };
+  }
 
   const handleSendNow = async (messageId: string) => {
     try {
-      await messagesApi.sendNow(messageId);
-      showSuccess("Mensagem enviada com sucesso!");
-      loadData();
+      await messagesApi.sendNow(messageId)
+      showSuccess('Mensagem enviada com sucesso!')
+      loadData()
     } catch (err: any) {
-      showError(err.message || "Erro ao enviar mensagem");
+      showError(err.message || 'Erro ao enviar mensagem')
     }
-  };
+  }
+
+  const handleImport = async (
+    e: ChangeEvent<HTMLInputElement, HTMLInputElement>,
+  ) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = async (event) => {
+      try {
+        const csvContent = event.target?.result as string
+        const result = await contactsApi.importCSV(csvContent)
+        showSuccess(
+          `Importação concluída: ${result.success} contatos importados, ${result.failed} falharam`,
+        )
+        loadData()
+      } catch (err: any) {
+        showError(err.message || 'Erro ao importar CSV')
+      }
+    }
+    reader.readAsText(file)
+    e.target.value = ''
+  }
 
   // Stats
-  const sentMessages = messages.filter((m) => ["SENT", "DELIVERED", "READ"].includes(m.status));
-  const deliveredMessages = messages.filter((m) => m.status === "DELIVERED");
-  const readMessages = messages.filter((m) => m.status === "READ");
+  const sentMessages = messages.filter((m) =>
+    ['SENT', 'DELIVERED', 'READ'].includes(m.status),
+  )
+  const deliveredMessages = messages.filter((m) => m.status === 'DELIVERED')
+  const readMessages = messages.filter((m) => m.status === 'READ')
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500"></div>
       </div>
-    );
+    )
   }
 
   if (!user) {
-    return null;
+    return null
   }
 
   return (
@@ -351,11 +416,15 @@ const handleDelete = async () => {
           <div
             className={`mb-6 p-4 rounded-lg flex items-center gap-2 ${
               error
-                ? "bg-red-50 text-red-600 border border-red-200"
-                : "bg-green-50 text-green-600 border border-green-200"
+                ? 'bg-red-50 text-red-600 border border-red-200'
+                : 'bg-green-50 text-green-600 border border-green-200'
             }`}
           >
-            {error ? <AlertCircle className="h-5 w-5" /> : <CheckCircle2 className="h-5 w-5" />}
+            {error ? (
+              <AlertCircle className="h-5 w-5" />
+            ) : (
+              <CheckCircle2 className="h-5 w-5" />
+            )}
             <span>{error || success}</span>
           </div>
         )}
@@ -380,27 +449,36 @@ const handleDelete = async () => {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => messagesApi.disconnectWhatsApp().then(() => checkWhatsappConnection())}
-                  className="text-red-600 border-red-300 hover:bg-red-50"
+                  onClick={() =>
+                    messagesApi
+                      .disconnectWhatsApp()
+                      .then(() => checkWhatsappConnection())
+                  }
+                  className="text-red-600 border-red-300 hover:bg-red-50 cursor-pointer"
                 >
                   <Unlink className="w-4 h-4 mr-2" />
                   Desconectar
                 </Button>
               )}
               <Button
+                className="cursor-pointer"
                 variant="outline"
                 size="sm"
                 onClick={checkWhatsappConnection}
                 disabled={isCheckingWhatsapp}
               >
-                <RefreshCw className={`w-4 h-4 mr-2 ${isCheckingWhatsapp ? "animate-spin" : ""}`} />
+                <RefreshCw
+                  className={`w-4 h-4 mr-2 ${isCheckingWhatsapp ? 'animate-spin' : ''}`}
+                />
                 Verificar
               </Button>
             </div>
           </CardHeader>
           <CardContent>
             {!whatsappStatus ? (
-              <p className="text-gray-500">Clique em "Verificar" para verificar a conexão...</p>
+              <p className="text-gray-500">
+                Clique em "Verificar" para verificar a conexão...
+              </p>
             ) : whatsappStatus.connected ? (
               <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                 <div className="flex items-center gap-3 mb-3">
@@ -408,20 +486,29 @@ const handleDelete = async () => {
                     <CheckCircle2 className="w-6 h-6 text-green-600" />
                   </div>
                   <div>
-                    <p className="text-green-800 font-medium">✅ WhatsApp conectado!</p>
+                    <p className="text-green-800 font-medium">
+                      ✅ WhatsApp conectado!
+                    </p>
                     {whatsappStatus.profile?.pushName && (
                       <p className="text-green-700 text-sm">
-                        {whatsappStatus.profile.pushName} ({whatsappStatus.profile.id?.split("@")[0]})
+                        {whatsappStatus.profile.pushName} (
+                        {whatsappStatus.profile.id?.split('@')[0]})
                       </p>
                     )}
                   </div>
                 </div>
                 <p className="text-green-700 text-sm">
-                  Sua integração está funcionando. Você pode enviar mensagens para seus contatos.
+                  Sua integração está funcionando. Você pode enviar mensagens
+                  para seus contatos.
                 </p>
 
-                <form onSubmit={handleSendTestMessage} className="mt-4 space-y-3">
-                  <p className="text-sm font-medium text-gray-700">Enviar mensagem de teste:</p>
+                <form
+                  onSubmit={handleSendTestMessage}
+                  className="mt-4 space-y-3"
+                >
+                  <p className="text-sm font-medium text-gray-700">
+                    Enviar mensagem de teste:
+                  </p>
                   <div className="flex gap-2">
                     <Input
                       placeholder="Telefone (ex: 11999999999)"
@@ -438,7 +525,7 @@ const handleDelete = async () => {
                     <Button
                       type="submit"
                       disabled={isSendingTest || !testPhone}
-                      className="bg-green-500 hover:bg-green-600"
+                      className="bg-green-500 hover:bg-green-600 cursor-pointer"
                     >
                       {isSendingTest ? (
                         <RefreshCw className="w-4 h-4 animate-spin" />
@@ -451,9 +538,12 @@ const handleDelete = async () => {
               </div>
             ) : (
               <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                <p className="text-red-800 font-medium mb-2">❌ WhatsApp desconectado</p>
+                <p className="text-red-800 font-medium mb-2">
+                  ❌ WhatsApp desconectado
+                </p>
                 <p className="text-red-700 text-sm mb-4">
-                  Para enviar mensagens via WhatsApp, você precisa conectar sua conta.
+                  Para enviar mensagens via WhatsApp, você precisa conectar sua
+                  conta.
                 </p>
                 <Button
                   onClick={() => setIsQRCodeModalOpen(true)}
@@ -474,7 +564,12 @@ const handleDelete = async () => {
               <Clock className="w-5 h-5 text-blue-600" />
               <CardTitle className="text-lg">Agendamento Automático</CardTitle>
             </div>
-            <Button variant="outline" size="sm" onClick={checkCronStatus}>
+            <Button
+              className="cursor-pointer"
+              variant="outline"
+              size="sm"
+              onClick={checkCronStatus}
+            >
               <RefreshCw className="w-4 h-4 mr-2" />
               Atualizar
             </Button>
@@ -489,12 +584,17 @@ const handleDelete = async () => {
                     <CheckCircle2 className="w-6 h-6 text-green-600" />
                   </div>
                   <div>
-                    <p className="text-green-800 font-medium">✅ Cron Job Ativo</p>
-                    <p className="text-green-700 text-sm">Verificando mensagens agendadas a cada minuto</p>
+                    <p className="text-green-800 font-medium">
+                      ✅ Cron Job Ativo
+                    </p>
+                    <p className="text-green-700 text-sm">
+                      Verificando mensagens agendadas a cada minuto
+                    </p>
                   </div>
                 </div>
                 <p className="text-green-700 text-sm">
-                  O sistema enviará automaticamente as mensagens agendadas quando chegar o horário.
+                  O sistema enviará automaticamente as mensagens agendadas
+                  quando chegar o horário.
                 </p>
               </div>
             ) : (
@@ -504,7 +604,9 @@ const handleDelete = async () => {
                     <AlertCircle className="w-6 h-6 text-yellow-600" />
                   </div>
                   <div>
-                    <p className="text-yellow-800 font-medium">⚠️ Cron Job Parado</p>
+                    <p className="text-yellow-800 font-medium">
+                      ⚠️ Cron Job Parado
+                    </p>
                     <p className="text-yellow-700 text-sm">
                       Mensagens agendadas não serão enviadas automaticamente
                     </p>
@@ -516,20 +618,26 @@ const handleDelete = async () => {
             <div className="mt-4 grid grid-cols-4 gap-4">
               <div className="bg-blue-50 rounded-lg p-3 text-center">
                 <p className="text-2xl font-bold text-blue-600">
-                  {messages.filter((m) => m.status === "SCHEDULED").length}
+                  {messages.filter((m) => m.status === 'SCHEDULED').length}
                 </p>
                 <p className="text-sm text-blue-700">Agendadas</p>
               </div>
               <div className="bg-green-50 rounded-lg p-3 text-center">
-                <p className="text-2xl font-bold text-green-600">{sentMessages.length}</p>
+                <p className="text-2xl font-bold text-green-600">
+                  {sentMessages.length}
+                </p>
                 <p className="text-sm text-green-700">Enviadas</p>
               </div>
               <div className="bg-blue-50 rounded-lg p-3 text-center">
-                <p className="text-2xl font-bold text-blue-600">{deliveredMessages.length}</p>
+                <p className="text-2xl font-bold text-blue-600">
+                  {deliveredMessages.length}
+                </p>
                 <p className="text-sm text-blue-700">Entregues</p>
               </div>
               <div className="bg-purple-50 rounded-lg p-3 text-center">
-                <p className="text-2xl font-bold text-purple-600">{readMessages.length}</p>
+                <p className="text-2xl font-bold text-purple-600">
+                  {readMessages.length}
+                </p>
                 <p className="text-sm text-purple-700">Lidas</p>
               </div>
             </div>
@@ -541,13 +649,13 @@ const handleDelete = async () => {
           open={isQRCodeModalOpen}
           onOpenChange={setIsQRCodeModalOpen}
           onConnected={() => {
-            checkWhatsappConnection();
-            showSuccess("WhatsApp conectado com sucesso!");
+            checkWhatsappConnection()
+            showSuccess('WhatsApp conectado com sucesso!')
           }}
         />
 
         <Tabs defaultValue="messages" className="space-y-6">
-<TabsList>
+          <TabsList>
             <TabsTrigger value="messages">Mensagens</TabsTrigger>
             <TabsTrigger value="scheduled">Agendamentos</TabsTrigger>
             <TabsTrigger value="reminders">Lembretes</TabsTrigger>
@@ -566,31 +674,39 @@ const handleDelete = async () => {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setDeleteAllType("messages")}
+                      onClick={() => setDeleteAllType('messages')}
                       className="text-red-600 border-red-300 hover:bg-red-50"
                     >
                       <Trash2 className="w-4 h-4 mr-2" />
                       Deletar Todas
                     </Button>
                   )}
-                  <Dialog open={isAddingMessage} onOpenChange={setIsAddingMessage}>
+                  <Dialog
+                    open={isAddingMessage}
+                    onOpenChange={setIsAddingMessage}
+                  >
                     <DialogTrigger asChild>
-                      <Button size="sm" className="bg-green-500 hover:bg-green-600">
+                      <Button
+                        size="sm"
+                        className="bg-green-500 hover:bg-green-600 cursor-pointer"
+                      >
                         <Plus className="w-4 h-4 mr-2" />
                         Nova Mensagem
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="sm:max-w-[500px]">
+                    <DialogContent className="sm:max-w-125">
                       <DialogHeader>
                         <DialogTitle>Criar Nova Mensagem</DialogTitle>
-                        <DialogDescription>Escreva sua mensagem e escolha quando enviar</DialogDescription>
+                        <DialogDescription>
+                          Escreva sua mensagem e escolha quando enviar
+                        </DialogDescription>
                       </DialogHeader>
                       <MessageForm
                         contacts={contacts}
                         onSuccess={(msg) => {
-                          showSuccess(msg);
-                          setIsAddingMessage(false);
-                          loadData();
+                          showSuccess(msg)
+                          setIsAddingMessage(false)
+                          loadData()
                         }}
                         onError={showError}
                       />
@@ -601,7 +717,7 @@ const handleDelete = async () => {
               <CardContent>
                 <MessagesList
                   messages={messages}
-                  onDelete={(id) => openDeleteModal(id, "message")}
+                  onDelete={(id) => openDeleteModal(id, 'message')}
                   onSendNow={handleSendNow}
                 />
               </CardContent>
@@ -629,7 +745,7 @@ const handleDelete = async () => {
                 ) : (
                   <MessagesList
                     messages={scheduledMessages}
-                    onDelete={(id) => openDeleteModal(id, "message")}
+                    onDelete={(id) => openDeleteModal(id, 'message')}
                     onSendNow={handleSendNow}
                   />
                 )}
@@ -649,32 +765,36 @@ const handleDelete = async () => {
               <CardContent>
                 <Dialog>
                   <DialogTrigger asChild>
-                    <Button size="sm" className="bg-green-500 hover:bg-green-600 mb-4">
+                    <Button
+                      size="sm"
+                      className="bg-green-500 hover:bg-green-600 mb-4 cursor-pointer"
+                    >
                       <Plus className="w-4 h-4 mr-2" />
                       Novo Lembrete
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="sm:max-w-[500px]">
+                  <DialogContent className="sm:max-w-125">
                     <DialogHeader>
                       <DialogTitle>Criar Novo Lembrete</DialogTitle>
                       <DialogDescription>
-                        Agende um lembrete de confirmação para enviar X dias antes da consulta
+                        Agende um lembrete de confirmação para enviar X dias
+                        antes da consulta
                       </DialogDescription>
                     </DialogHeader>
                     <ReminderForm
                       contacts={contacts}
                       onSuccess={(msg) => {
-                        showSuccess(msg);
-                        loadData();
+                        showSuccess(msg)
+                        loadData()
                       }}
                       onError={showError}
                     />
                   </DialogContent>
                 </Dialog>
 
-<MessagesList
+                <MessagesList
                   messages={messages.filter((m) => m.isReminder === true)}
-                  onDelete={(id) => openDeleteModal(id, "message")}
+                  onDelete={(id) => openDeleteModal(id, 'message')}
                   onSendNow={handleSendNow}
                 />
               </CardContent>
@@ -693,7 +813,7 @@ const handleDelete = async () => {
               <CardContent>
                 <ConfirmationsList
                   confirmations={confirmations}
-                  onDelete={(id) => openDeleteModal(id, "confirmation")}
+                  onDelete={(id) => openDeleteModal(id, 'confirmation')}
                 />
               </CardContent>
             </Card>
@@ -709,35 +829,51 @@ const handleDelete = async () => {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setDeleteAllType("contacts")}
-                      className="text-red-600 border-red-300 hover:bg-red-50"
+                      onClick={() => setDeleteAllType('contacts')}
+                      className="text-red-600 border-red-300 hover:bg-red-50 cursor-pointer"
                     >
                       <Trash2 className="w-4 h-4 mr-2" />
                       Deletar Todos
                     </Button>
                   )}
-                  <Dialog open={isAddingContact} onOpenChange={(open) => {
-                    setIsAddingContact(open);
-                    if (!open) setEditingContact(null);
-                  }}>
+                  <Dialog
+                    open={isAddingContact}
+                    onOpenChange={(open) => {
+                      setIsAddingContact(open)
+                      if (!open) setEditingContact(null)
+                    }}
+                  >
                     <DialogTrigger asChild>
-                      <Button size="sm" className="bg-green-500 hover:bg-green-600">
+                      <Button
+                        size="sm"
+                        className="bg-green-500 hover:bg-green-600 cursor-pointer"
+                      >
                         <Plus className="w-4 h-4 mr-2" />
                         Adicionar Contato
                       </Button>
                     </DialogTrigger>
                     <DialogContent>
                       <DialogHeader>
-                        <DialogTitle>{editingContact ? "Editar Contato" : "Adicionar Novo Contato"}</DialogTitle>
-                        <DialogDescription>Preencha os dados do contato abaixo</DialogDescription>
+                        <DialogTitle>
+                          {editingContact
+                            ? 'Editar Contato'
+                            : 'Adicionar Novo Contato'}
+                        </DialogTitle>
+                        <DialogDescription>
+                          Preencha os dados do contato abaixo
+                        </DialogDescription>
                       </DialogHeader>
                       <ContactForm
                         contact={editingContact}
                         onSuccess={() => {
-                          showSuccess(editingContact ? "Contato atualizado com sucesso!" : "Contato adicionado com sucesso!");
-                          setIsAddingContact(false);
-                          setEditingContact(null);
-                          loadData();
+                          showSuccess(
+                            editingContact
+                              ? 'Contato atualizado com sucesso!'
+                              : 'Contato adicionado com sucesso!',
+                          )
+                          setIsAddingContact(false)
+                          setEditingContact(null)
+                          loadData()
                         }}
                         onError={showError}
                       />
@@ -751,7 +887,7 @@ const handleDelete = async () => {
                     variant="outline"
                     size="sm"
                     onClick={() => contactsApi.exportCSV()}
-                    className="text-blue-600 border-blue-300 hover:bg-blue-50"
+                    className="text-blue-600 border-blue-300 hover:bg-blue-50 cursor-pointer"
                   >
                     <Download className="w-4 h-4 mr-2" />
                     Exportar CSV
@@ -759,8 +895,10 @@ const handleDelete = async () => {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => document.getElementById('csv-import-input')?.click()}
-                    className="text-green-600 border-green-300 hover:bg-green-50"
+                    onClick={() =>
+                      document.getElementById('csv-import-input')?.click()
+                    }
+                    className="text-green-600 border-green-300 hover:bg-green-50 cursor-pointer"
                   >
                     <Upload className="w-4 h-4 mr-2" />
                     Importar CSV
@@ -770,36 +908,32 @@ const handleDelete = async () => {
                     type="file"
                     accept=".csv"
                     className="hidden"
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      
-                      const reader = new FileReader();
-                      reader.onload = async (event) => {
-                        try {
-                          const csvContent = event.target?.result as string;
-                          const result = await contactsApi.importCSV(csvContent);
-                          showSuccess(
-                            `Importação concluída: ${result.success} contatos importados, ${result.failed} falharam`
-                          );
-                          loadData();
-                        } catch (err: any) {
-                          showError(err.message || "Erro ao importar CSV");
-                        }
-                      };
-                      reader.readAsText(file);
-                      e.target.value = '';
-                    }}
+                    onChange={handleImport}
                   />
                 </div>
-                <ContactsList 
-                  contacts={contacts} 
-                  onDelete={(id) => openDeleteModal(id, "contact")}
-                  onEdit={(contact) => {
-                    setEditingContact(contact);
-                    setIsAddingContact(true);
-                  }}
-                />
+                <div className="relative mb-4">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Input
+                    placeholder="Buscar contato por nome, telefone ou email..."
+                    value={searchTermContacts}
+                    onChange={(e) => setSearchTermContacts(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                {searchTermContacts && filteredContacts.length === 0 ? (
+                  <p className="text-center text-gray-500 py-4">
+                    Nenhum contato encontrado para &quot;{searchTermContacts}&quot;
+                  </p>
+                ) : (
+                  <ContactsList
+                    contacts={filteredContacts}
+                    onDelete={(id) => openDeleteModal(id, 'contact')}
+                    onEdit={(contact) => {
+                      setEditingContact(contact)
+                      setIsAddingContact(true)
+                    }}
+                  />
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -814,42 +948,54 @@ const handleDelete = async () => {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setDeleteAllType("templates")}
+                      onClick={() => setDeleteAllType('templates')}
                       className="text-red-600 border-red-300 hover:bg-red-50"
                     >
                       <Trash2 className="w-4 h-4 mr-2" />
                       Deletar Todos
                     </Button>
                   )}
-                  <Dialog open={isAddingTemplate} onOpenChange={(open) => {
-                    setIsAddingTemplate(open);
-                    if (!open) setEditingTemplate(null);
-                  }}>
+                  <Dialog
+                    open={isAddingTemplate}
+                    onOpenChange={(open) => {
+                      setIsAddingTemplate(open)
+                      if (!open) setEditingTemplate(null)
+                    }}
+                  >
                     <DialogTrigger asChild>
-                      <Button size="sm" className="bg-green-500 hover:bg-green-600">
+                      <Button
+                        size="sm"
+                        className="bg-green-500 hover:bg-green-600 cursor-pointer"
+                      >
                         <Plus className="w-4 h-4 mr-2" />
                         Novo Template
                       </Button>
                     </DialogTrigger>
                     <DialogContent>
                       <DialogHeader>
-                        <DialogTitle>{editingTemplate ? "Editar Template" : "Criar Novo Template"}</DialogTitle>
+                        <DialogTitle>
+                          {editingTemplate
+                            ? 'Editar Template'
+                            : 'Criar Novo Template'}
+                        </DialogTitle>
                         <DialogDescription>
-                          {editingTemplate ? "Altere os dados do template abaixo" : "Crie um modelo de mensagem para reuse"}
+                          {editingTemplate
+                            ? 'Altere os dados do template abaixo'
+                            : 'Crie um modelo de mensagem para reuse'}
                         </DialogDescription>
                       </DialogHeader>
                       <TemplateForm
                         template={editingTemplate}
                         onSuccess={(msg) => {
-                          showSuccess(msg);
-                          setIsAddingTemplate(false);
-                          setEditingTemplate(null);
-                          loadData();
+                          showSuccess(msg)
+                          setIsAddingTemplate(false)
+                          setEditingTemplate(null)
+                          loadData()
                         }}
                         onError={showError}
                         onCancel={() => {
-                          setIsAddingTemplate(false);
-                          setEditingTemplate(null);
+                          setIsAddingTemplate(false)
+                          setEditingTemplate(null)
                         }}
                       />
                     </DialogContent>
@@ -859,10 +1005,10 @@ const handleDelete = async () => {
               <CardContent>
                 <TemplatesList
                   templates={templates}
-                  onDelete={(id) => openDeleteModal(id, "template")}
+                  onDelete={(id) => openDeleteModal(id, 'template')}
                   onEdit={(template) => {
-                    setEditingTemplate(template);
-                    setIsAddingTemplate(true);
+                    setEditingTemplate(template)
+                    setIsAddingTemplate(true)
                   }}
                 />
               </CardContent>
@@ -875,7 +1021,7 @@ const handleDelete = async () => {
           open={!!itemToDelete}
           onOpenChange={(open) => !open && setItemToDelete(null)}
           title="Confirmar Exclusão"
-          description={`Tem certeza que deseja excluir este ${deleteType === "contact" ? "contato" : deleteType === "message" ? "mensagem" : deleteType === "template" ? "template" : "confirmação"}? Esta ação não pode ser desfeita.`}
+          description={`Tem certeza que deseja excluir este ${deleteType === 'contact' ? 'contato' : deleteType === 'message' ? 'mensagem' : deleteType === 'template' ? 'template' : 'confirmação'}? Esta ação não pode ser desfeita.`}
           onConfirm={handleDelete}
           isLoading={isDeleting}
           confirmText="Excluir"
@@ -885,8 +1031,8 @@ const handleDelete = async () => {
         <ConfirmDialog
           open={!!deleteAllType}
           onOpenChange={(open) => !open && setDeleteAllType(null)}
-          title={`⚠️ Excluir Todos os ${deleteAllType === "contacts" ? "Contatos" : deleteAllType === "messages" ? "Mensagens" : "Templates"}`}
-          description={`ATENÇÃO: Esta ação excluirá permanentemente todos os seus ${deleteAllType === "contacts" ? contacts.length : deleteAllType === "messages" ? messages.length : templates.length} ${deleteAllType === "contacts" ? "contatos" : deleteAllType === "messages" ? "mensagens" : "templates"}. Esta ação não pode ser desfeita.`}
+          title={`⚠️ Excluir Todos os ${deleteAllType === 'contacts' ? 'Contatos' : deleteAllType === 'messages' ? 'Mensagens' : 'Templates'}`}
+          description={`ATENÇÃO: Esta ação excluirá permanentemente todos os seus ${deleteAllType === 'contacts' ? contacts.length : deleteAllType === 'messages' ? messages.length : templates.length} ${deleteAllType === 'contacts' ? 'contatos' : deleteAllType === 'messages' ? 'mensagens' : 'templates'}. Esta ação não pode ser desfeita.`}
           onConfirm={handleDeleteAll}
           isLoading={isDeletingAll}
           confirmText="Excluir Todos"
@@ -894,5 +1040,5 @@ const handleDelete = async () => {
         />
       </main>
     </div>
-  );
+  )
 }
