@@ -1,20 +1,11 @@
 'use client'
 
-import { ChangeEvent, useEffect, useMemo, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { ChangeEvent, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import {
-  authApi,
-  contactsApi,
-  messagesApi,
-  templatesApi,
-  confirmationsApi,
-} from '@/lib/api'
-import {
   MessageCircle,
-  User,
   LogOut,
   Plus,
   Trash2,
@@ -53,81 +44,57 @@ import {
   ReminderForm,
   ConfirmationsList,
 } from './components'
-
-interface User {
-  id: string
-  name: string
-  email: string
-}
-
-interface Contact {
-  id: string
-  name: string
-  phone: string
-  email?: string
-}
-
-interface Message {
-  id: string
-  content: string
-  status: 'PENDING' | 'SENT' | 'DELIVERED' | 'READ' | 'FAILED' | 'SCHEDULED'
-  scheduledAt?: string
-  sentAt?: string
-  deliveredAt?: string
-  readAt?: string
-  recurrenceType?: 'NONE' | 'MONTHLY'
-  reminderDays?: number
-  isReminder?: boolean
-  contactIds?: string[]
-  contact: {
-    name: string
-    phone: string
-  }
-}
-
-interface Template {
-  id: string
-  name: string
-  content: string
-  createdAt: string
-  updatedAt: string
-}
-
-interface Confirmation {
-  id: string
-  status: 'PENDING' | 'CONFIRMED' | 'DENIED'
-  contactName: string
-  contactPhone: string
-  eventDate: string
-  messageContent?: string
-  response?: string
-  respondedAt?: string
-  createdAt: string
-}
+import { useDashboardData } from './hooks/useDashboardData'
 
 export default function DashboardPage() {
-  const router = useRouter()
-  const [user, setUser] = useState<User | null>(null)
-  const [contacts, setContacts] = useState<Contact[]>([])
-  const [messages, setMessages] = useState<Message[]>([])
-  const scheduledMessages = messages.filter(
-    (m) => m.status === 'SCHEDULED' && m.isReminder !== true,
-  )
-  const [templates, setTemplates] = useState<Template[]>([])
-  const [confirmations, setConfirmations] = useState<Confirmation[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
+  const {
+    user,
+    contacts,
+    messages,
+    templates,
+    confirmations,
+    whatsappStatus,
+    cronStatus,
+    loading,
+    error,
+    success,
+    refresh,
+    handleLogout,
+    handleDelete,
+    handleDeleteAll,
+    handleSendNow,
+    handleImportCSV,
+    showSuccess,
+    showError,
+    checkWhatsappConnection,
+    checkCronStatus,
+  } = useDashboardData()
 
-  // Modais
+  const scheduledMessages = useMemo(
+    () => messages.filter((m) => m.status === 'SCHEDULED' && m.isReminder !== true),
+    [messages],
+  )
+
+  const sentMessages = useMemo(
+    () => messages.filter((m) => ['SENT', 'DELIVERED', 'READ'].includes(m.status)),
+    [messages],
+  )
+  const deliveredMessages = useMemo(
+    () => messages.filter((m) => m.status === 'DELIVERED'),
+    [messages],
+  )
+  const readMessages = useMemo(
+    () => messages.filter((m) => m.status === 'READ'),
+    [messages],
+  )
+
   const [isAddingContact, setIsAddingContact] = useState(false)
-  const [editingContact, setEditingContact] = useState<Contact | null>(null)
+  const [editingContact, setEditingContact] = useState<any>(null)
   const [isAddingMessage, setIsAddingMessage] = useState(false)
   const [isAddingTemplate, setIsAddingTemplate] = useState(false)
-  const [editingTemplate, setEditingTemplate] = useState<Template | null>(null)
+  const [editingTemplate, setEditingTemplate] = useState<any>(null)
   const [isQRCodeModalOpen, setIsQRCodeModalOpen] = useState(false)
 
-  // Estados de confirmação
   const [itemToDelete, setItemToDelete] = useState<string | null>(null)
   const [deleteType, setDeleteType] = useState<
     'contact' | 'message' | 'template' | 'confirmation' | null
@@ -138,17 +105,11 @@ export default function DashboardPage() {
   >(null)
   const [isDeletingAll, setIsDeletingAll] = useState(false)
 
-  // WhatsApp
-  const [whatsappStatus, setWhatsappStatus] = useState<any>(null)
   const [isCheckingWhatsapp, setIsCheckingWhatsapp] = useState(false)
   const [testPhone, setTestPhone] = useState('')
   const [testMessage, setTestMessage] = useState('')
   const [isSendingTest, setIsSendingTest] = useState(false)
 
-  // Cron
-  const [cronStatus, setCronStatus] = useState<any>(null)
-
-  // Busca
   const [searchTermContacts, setSearchTermContacts] = useState('')
 
   const filteredContacts = useMemo(() => {
@@ -162,99 +123,43 @@ export default function DashboardPage() {
     )
   }, [contacts, searchTermContacts])
 
-  useEffect(() => {
-    const token = localStorage.getItem('token')
-    if (!token) {
-      router.push('/')
-      return
-    }
-
-    const userData = localStorage.getItem('user')
-    if (userData) {
-      setUser(JSON.parse(userData))
-    }
-
-    loadData()
-    checkWhatsappConnection()
-    checkCronStatus()
-
-    // Atualiza confirmações a cada 10 segundos
-    const interval = setInterval(() => {
-      confirmationsApi.getAll().then(setConfirmations).catch(console.error)
-    }, 10000)
-
-    return () => clearInterval(interval)
-  }, [router])
-
-  const loadData = async () => {
-    try {
-      const [contactsData, messagesData, templatesData, confirmationsData] =
-        await Promise.all([
-          contactsApi.getAll(),
-          messagesApi.getAll(),
-          templatesApi.getAll(),
-          confirmationsApi.getAll(),
-        ])
-      setContacts(contactsData)
-      setMessages(messagesData)
-      setTemplates(templatesData)
-      setConfirmations(confirmationsData)
-    } catch (error: any) {
-      console.error('Erro ao carregar dados:', error)
-    } finally {
-      setLoading(false)
-    }
+  const openDeleteModal = (
+    id: string,
+    type: 'contact' | 'message' | 'template' | 'confirmation',
+  ) => {
+    setItemToDelete(id)
+    setDeleteType(type)
   }
 
-  const checkWhatsappConnection = async () => {
-    setIsCheckingWhatsapp(true)
-    try {
-      const status = await messagesApi.checkWhatsAppStatus()
-      setWhatsappStatus(status)
-    } catch (error: any) {
-      console.error('Erro ao verificar WhatsApp:', error)
-      setWhatsappStatus({ connected: false, configured: false })
-    } finally {
-      setIsCheckingWhatsapp(false)
-    }
+  const onDelete = async () => {
+    if (!itemToDelete || !deleteType) return
+    setIsDeleting(true)
+    await handleDelete(itemToDelete, deleteType)
+    setItemToDelete(null)
+    setDeleteType(null)
+    setIsDeleting(false)
   }
 
-  const checkCronStatus = async () => {
-    try {
-      const status = await messagesApi.getCronStatus()
-      setCronStatus(status)
-    } catch (error: any) {
-      console.error('Erro ao verificar status do cron:', error)
-    }
+  const onDeleteAll = async () => {
+    if (!deleteAllType) return
+    setIsDeletingAll(true)
+    await handleDeleteAll(deleteAllType)
+    setDeleteAllType(null)
+    setIsDeletingAll(false)
   }
 
-  const showSuccess = (message: string) => {
-    setSuccess(message)
-    setTimeout(() => setSuccess(null), 3000)
+  const onImportCSV = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    handleImportCSV(file)
+    e.target.value = ''
   }
 
-  const showError = (message: string) => {
-    setError(message)
-    setTimeout(() => setError(null), 3000)
-  }
-
-  const handleLogout = async () => {
-    try {
-      await authApi.logout()
-    } catch (error) {
-      console.error('Erro ao fazer logout:', error)
-    } finally {
-      localStorage.removeItem('token')
-      localStorage.removeItem('user')
-      router.push('/')
-    }
-  }
-
-  const handleSendTestMessage = async (e: React.FormEvent) => {
+  const onSendTestMessage = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSendingTest(true)
-
     try {
+      const { messagesApi } = await import('@/lib/api')
       await messagesApi.sendTestMessage(
         testPhone,
         testMessage || 'Teste ZapReminder! 🚀',
@@ -268,112 +173,6 @@ export default function DashboardPage() {
       setIsSendingTest(false)
     }
   }
-
-  const openDeleteModal = (
-    id: string,
-    type: 'contact' | 'message' | 'template' | 'confirmation',
-  ) => {
-    setItemToDelete(id)
-    setDeleteType(type)
-  }
-
-  const handleDelete = async () => {
-    if (!itemToDelete || !deleteType) return
-    setIsDeleting(true)
-
-    try {
-      if (deleteType === 'contact') {
-        await contactsApi.delete(itemToDelete)
-        showSuccess('Contato excluído com sucesso!')
-      } else if (deleteType === 'message') {
-        await messagesApi.delete(itemToDelete)
-        showSuccess('Mensagem excluída com sucesso!')
-      } else if (deleteType === 'template') {
-        await templatesApi.delete(itemToDelete)
-        showSuccess('Template excluído com sucesso!')
-      } else if (deleteType === 'confirmation') {
-        await confirmationsApi.delete(itemToDelete)
-        showSuccess('Confirmação excluída com sucesso!')
-      }
-      setItemToDelete(null)
-      setDeleteType(null)
-      loadData()
-    } catch (err: any) {
-      showError(
-        err.message ||
-          `Erro ao excluir ${deleteType === 'contact' ? 'contato' : deleteType === 'message' ? 'mensagem' : deleteType === 'template' ? 'template' : 'confirmação'}`,
-      )
-    } finally {
-      setIsDeleting(false)
-    }
-  }
-
-  const handleDeleteAll = async () => {
-    if (!deleteAllType) return
-    setIsDeletingAll(true)
-
-    try {
-      if (deleteAllType === 'contacts') {
-        await contactsApi.deleteAll()
-        showSuccess('Todos os contatos foram excluídos com sucesso!')
-      } else if (deleteAllType === 'messages') {
-        await messagesApi.deleteAll()
-        showSuccess('Todas as mensagens foram excluídas com sucesso!')
-      } else if (deleteAllType === 'templates') {
-        await templatesApi.deleteAll()
-        showSuccess('Todos os templates foram excluídos com sucesso!')
-      }
-      setDeleteAllType(null)
-      loadData()
-    } catch (err: any) {
-      showError(
-        err.message ||
-          `Erro ao excluir ${deleteAllType === 'contacts' ? 'contatos' : deleteAllType === 'messages' ? 'mensagens' : 'templates'}`,
-      )
-    } finally {
-      setIsDeletingAll(false)
-    }
-  }
-
-  const handleSendNow = async (messageId: string) => {
-    try {
-      await messagesApi.sendNow(messageId)
-      showSuccess('Mensagem enviada com sucesso!')
-      loadData()
-    } catch (err: any) {
-      showError(err.message || 'Erro ao enviar mensagem')
-    }
-  }
-
-  const handleImport = async (
-    e: ChangeEvent<HTMLInputElement, HTMLInputElement>,
-  ) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    const reader = new FileReader()
-    reader.onload = async (event) => {
-      try {
-        const csvContent = event.target?.result as string
-        const result = await contactsApi.importCSV(csvContent)
-        showSuccess(
-          `Importação concluída: ${result.success} contatos importados, ${result.failed} falharam`,
-        )
-        loadData()
-      } catch (err: any) {
-        showError(err.message || 'Erro ao importar CSV')
-      }
-    }
-    reader.readAsText(file)
-    e.target.value = ''
-  }
-
-  // Stats
-  const sentMessages = messages.filter((m) =>
-    ['SENT', 'DELIVERED', 'READ'].includes(m.status),
-  )
-  const deliveredMessages = messages.filter((m) => m.status === 'DELIVERED')
-  const readMessages = messages.filter((m) => m.status === 'READ')
 
   if (loading) {
     return (
@@ -389,7 +188,6 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <header className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -411,7 +209,6 @@ export default function DashboardPage() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <h1 className="text-2xl font-bold mb-6">Bem-vindo, {user.name}!</h1>
 
-        {/* Alerts */}
         {(error || success) && (
           <div
             className={`mb-6 p-4 rounded-lg flex items-center gap-2 ${
@@ -429,7 +226,6 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Stats */}
         <StatsCards
           contactsCount={contacts.length}
           messagesCount={messages.length}
@@ -437,7 +233,6 @@ export default function DashboardPage() {
           scheduledCount={scheduledMessages.length}
         />
 
-        {/* WhatsApp Status */}
         <Card className="mb-8">
           <CardHeader className="flex flex-row items-center justify-between">
             <div className="flex items-center gap-2">
@@ -449,11 +244,11 @@ export default function DashboardPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() =>
-                    messagesApi
-                      .disconnectWhatsApp()
-                      .then(() => checkWhatsappConnection())
-                  }
+                  onClick={async () => {
+                    const { messagesApi } = await import('@/lib/api')
+                    await messagesApi.disconnectWhatsApp()
+                    checkWhatsappConnection()
+                  }}
                   className="text-red-600 border-red-300 hover:bg-red-50 cursor-pointer"
                 >
                   <Unlink className="w-4 h-4 mr-2" />
@@ -503,7 +298,7 @@ export default function DashboardPage() {
                 </p>
 
                 <form
-                  onSubmit={handleSendTestMessage}
+                  onSubmit={onSendTestMessage}
                   className="mt-4 space-y-3"
                 >
                   <p className="text-sm font-medium text-gray-700">
@@ -557,7 +352,6 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Cron Job Status */}
         <Card className="mb-8">
           <CardHeader className="flex flex-row items-center justify-between">
             <div className="flex items-center gap-2">
@@ -644,7 +438,6 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* QR Code Modal */}
         <QRCodeModal
           open={isQRCodeModalOpen}
           onOpenChange={setIsQRCodeModalOpen}
@@ -664,7 +457,6 @@ export default function DashboardPage() {
             <TabsTrigger value="templates">Templates</TabsTrigger>
           </TabsList>
 
-          {/* Messages Tab */}
           <TabsContent value="messages" className="space-y-6">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
@@ -706,7 +498,7 @@ export default function DashboardPage() {
                         onSuccess={(msg) => {
                           showSuccess(msg)
                           setIsAddingMessage(false)
-                          loadData()
+                          refresh()
                         }}
                         onError={showError}
                       />
@@ -724,7 +516,6 @@ export default function DashboardPage() {
             </Card>
           </TabsContent>
 
-          {/* Scheduled Tab */}
           <TabsContent value="scheduled" className="space-y-6">
             <Card>
               <CardHeader>
@@ -753,7 +544,6 @@ export default function DashboardPage() {
             </Card>
           </TabsContent>
 
-          {/* Reminders Tab */}
           <TabsContent value="reminders" className="space-y-6">
             <Card>
               <CardHeader>
@@ -785,7 +575,7 @@ export default function DashboardPage() {
                       contacts={contacts}
                       onSuccess={(msg) => {
                         showSuccess(msg)
-                        loadData()
+                        refresh()
                       }}
                       onError={showError}
                     />
@@ -801,7 +591,6 @@ export default function DashboardPage() {
             </Card>
           </TabsContent>
 
-          {/* Confirmations Tab */}
           <TabsContent value="confirmations" className="space-y-6">
             <Card>
               <CardHeader>
@@ -819,7 +608,6 @@ export default function DashboardPage() {
             </Card>
           </TabsContent>
 
-          {/* Contacts Tab */}
           <TabsContent value="contacts" className="space-y-6">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
@@ -873,7 +661,7 @@ export default function DashboardPage() {
                           )
                           setIsAddingContact(false)
                           setEditingContact(null)
-                          loadData()
+                          refresh()
                         }}
                         onError={showError}
                       />
@@ -886,7 +674,10 @@ export default function DashboardPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => contactsApi.exportCSV()}
+                    onClick={async () => {
+                      const { contactsApi } = await import('@/lib/api')
+                      contactsApi.exportCSV()
+                    }}
                     className="text-blue-600 border-blue-300 hover:bg-blue-50 cursor-pointer"
                   >
                     <Download className="w-4 h-4 mr-2" />
@@ -908,7 +699,7 @@ export default function DashboardPage() {
                     type="file"
                     accept=".csv"
                     className="hidden"
-                    onChange={handleImport}
+                    onChange={onImportCSV}
                   />
                 </div>
                 <div className="relative mb-4">
@@ -938,7 +729,6 @@ export default function DashboardPage() {
             </Card>
           </TabsContent>
 
-          {/* Templates Tab */}
           <TabsContent value="templates" className="space-y-6">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
@@ -990,7 +780,7 @@ export default function DashboardPage() {
                           showSuccess(msg)
                           setIsAddingTemplate(false)
                           setEditingTemplate(null)
-                          loadData()
+                          refresh()
                         }}
                         onError={showError}
                         onCancel={() => {
@@ -1016,24 +806,22 @@ export default function DashboardPage() {
           </TabsContent>
         </Tabs>
 
-        {/* Delete Item Modal */}
         <ConfirmDialog
           open={!!itemToDelete}
           onOpenChange={(open) => !open && setItemToDelete(null)}
           title="Confirmar Exclusão"
           description={`Tem certeza que deseja excluir este ${deleteType === 'contact' ? 'contato' : deleteType === 'message' ? 'mensagem' : deleteType === 'template' ? 'template' : 'confirmação'}? Esta ação não pode ser desfeita.`}
-          onConfirm={handleDelete}
+          onConfirm={onDelete}
           isLoading={isDeleting}
           confirmText="Excluir"
         />
 
-        {/* Delete All Modal */}
         <ConfirmDialog
           open={!!deleteAllType}
           onOpenChange={(open) => !open && setDeleteAllType(null)}
           title={`⚠️ Excluir Todos os ${deleteAllType === 'contacts' ? 'Contatos' : deleteAllType === 'messages' ? 'Mensagens' : 'Templates'}`}
           description={`ATENÇÃO: Esta ação excluirá permanentemente todos os seus ${deleteAllType === 'contacts' ? contacts.length : deleteAllType === 'messages' ? messages.length : templates.length} ${deleteAllType === 'contacts' ? 'contatos' : deleteAllType === 'messages' ? 'mensagens' : 'templates'}. Esta ação não pode ser desfeita.`}
-          onConfirm={handleDeleteAll}
+          onConfirm={onDeleteAll}
           isLoading={isDeletingAll}
           confirmText="Excluir Todos"
           variant="danger"
