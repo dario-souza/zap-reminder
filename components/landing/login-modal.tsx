@@ -1,7 +1,7 @@
-"use client";
+'use client'
 
-import * as React from "react";
-import { Button } from "@/components/ui/button";
+import * as React from 'react'
+import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
@@ -9,79 +9,133 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
-import { MessageCircle, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
-import { authApi } from "@/lib/api";
-import { useRouter } from "next/navigation";
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Separator } from '@/components/ui/separator'
+import { MessageCircle, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
+import { useRouter } from 'next/navigation'
 
 interface LoginModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+  open: boolean
+  onOpenChange: (open: boolean) => void
 }
 
 export function LoginModal({ open, onOpenChange }: LoginModalProps) {
-  const [isLoading, setIsLoading] = React.useState(false);
-  const [activeTab, setActiveTab] = React.useState("login");
-  const [error, setError] = React.useState<string | null>(null);
-  const [success, setSuccess] = React.useState<string | null>(null);
-  const router = useRouter();
+  const [isLoading, setIsLoading] = React.useState(false)
+  const [activeTab, setActiveTab] = React.useState('login')
+  const [error, setError] = React.useState<string | null>(null)
+  const [success, setSuccess] = React.useState<string | null>(null)
+  const router = useRouter()
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError(null);
-    
-    const formData = new FormData(e.currentTarget);
-    const email = formData.get("email") as string;
-    const password = formData.get("password") as string;
-    
+    e.preventDefault()
+    setIsLoading(true)
+    setError(null)
+
+    const formData = new FormData(e.currentTarget)
+    const email = formData.get('email') as string
+    const password = formData.get('password') as string
+
     try {
-      const data = await authApi.login(email, password);
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("user", JSON.stringify(data.user));
-      setSuccess("Login realizado com sucesso!");
-      
-      setTimeout(() => {
-        onOpenChange(false);
-        router.push("/dashboard");
-      }, 1500);
+      const { data, error: signInError } =
+        await supabase.auth.signInWithPassword({
+          email,
+          password,
+        })
+
+      if (signInError) {
+        const message = signInError.message || ''
+        if (/(invalid|wrong|not found|unable|signin|login)/i.test(message)) {
+          throw new Error(
+            'Email ou senha incorretos. Verifique suas credenciais.',
+          )
+        }
+        throw new Error(message)
+      }
+
+      if (data.session) {
+        localStorage.setItem('token', data.session.access_token)
+        localStorage.setItem('user', JSON.stringify(data.user))
+        setSuccess('Login realizado com sucesso!')
+
+        setTimeout(() => {
+          onOpenChange(false)
+          router.push('/dashboard')
+        }, 1500)
+      }
     } catch (err: any) {
-      setError(err.message || "Erro ao fazer login");
+      setError(err.message || 'Erro ao fazer login')
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  };
+  }
 
   const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError(null);
-    
-    const formData = new FormData(e.currentTarget);
-    const name = formData.get("name") as string;
-    const email = formData.get("register-email") as string;
-    const password = formData.get("register-password") as string;
-    
+    e.preventDefault()
+
+    setIsLoading(true)
+    setError(null)
+    setSuccess(null)
+
+    const formData = new FormData(e.currentTarget)
+    const name = formData.get('name') as string
+    const email = formData.get('register-email') as string
+    const password = formData.get('register-password') as string
+
     try {
-      const data = await authApi.register(name, email, password);
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("user", JSON.stringify(data.user));
-      setSuccess("Conta criada com sucesso!");
-      
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { name },
+        },
+      })
+
+      // 🔴 Se houver erro explícito
+      if (error) {
+        throw new Error(
+          'Este email já está cadastrado ou os dados são inválidos.',
+        )
+      }
+
+      // ⚠️ CASO SUSPEITO (email já existe OU confirmação ativa)
+      if (!data.session) {
+        // Vamos testar login
+        const { error: loginError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        })
+
+        if (!loginError) {
+          // conseguiu logar = email já existia
+          throw new Error('Este email já está cadastrado. Faça login.')
+        }
+
+        // Aqui sim é usuário novo aguardando confirmação
+        setSuccess('Conta criada! Verifique seu email.')
+        return
+      }
+
+      // ✅ Criou e logou automaticamente
+      localStorage.setItem('token', data.session.access_token)
+      localStorage.setItem('user', JSON.stringify(data.user))
+
+      setSuccess('Conta criada com sucesso!')
+
       setTimeout(() => {
-        onOpenChange(false);
-        router.push("/dashboard");
-      }, 1500);
+        onOpenChange(false)
+        router.push('/dashboard')
+      }, 1500)
     } catch (err: any) {
-      setError(err.message || "Erro ao criar conta");
+      setSuccess(null) // 🔥 garante que success nunca fique ativo
+      setError(err.message || 'Erro ao criar conta')
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  };
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -90,22 +144,36 @@ export function LoginModal({ open, onOpenChange }: LoginModalProps) {
           <div className="mx-auto w-12 h-12 bg-green-500 rounded-xl flex items-center justify-center mb-4">
             <MessageCircle className="w-6 h-6 text-white" />
           </div>
-          <DialogTitle className="text-2xl">Bem-vindo ao ZapReminder</DialogTitle>
+          <DialogTitle className="text-2xl">
+            Bem-vindo ao ZapReminder
+          </DialogTitle>
           <DialogDescription>
             Entre ou crie sua conta para começar a agendar mensagens
           </DialogDescription>
         </DialogHeader>
 
         {(error || success) && (
-          <div className={`mt-4 p-3 rounded-lg flex items-center gap-2 text-sm ${
-            error ? "bg-red-50 text-red-600 border border-red-200" : "bg-green-50 text-green-600 border border-green-200"
-          }`}>
-            {error ? <AlertCircle className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
+          <div
+            className={`mt-4 p-3 rounded-lg flex items-center gap-2 text-sm ${
+              error
+                ? 'bg-red-50 text-red-600 border border-red-200'
+                : 'bg-green-50 text-green-600 border border-green-200'
+            }`}
+          >
+            {error ? (
+              <AlertCircle className="h-4 w-4" />
+            ) : (
+              <CheckCircle2 className="h-4 w-4" />
+            )}
             {error || success}
           </div>
         )}
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mt-4">
+        <Tabs
+          value={activeTab}
+          onValueChange={setActiveTab}
+          className="w-full mt-4"
+        >
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="login">Entrar</TabsTrigger>
             <TabsTrigger value="register">Criar Conta</TabsTrigger>
@@ -144,7 +212,7 @@ export function LoginModal({ open, onOpenChange }: LoginModalProps) {
                     Entrando...
                   </>
                 ) : (
-                  "Entrar"
+                  'Entrar'
                 )}
               </Button>
             </form>
@@ -192,7 +260,7 @@ export function LoginModal({ open, onOpenChange }: LoginModalProps) {
                     Criando conta...
                   </>
                 ) : (
-                  "Criar Conta"
+                  'Criar Conta'
                 )}
               </Button>
             </form>
@@ -237,5 +305,5 @@ export function LoginModal({ open, onOpenChange }: LoginModalProps) {
         </div>
       </DialogContent>
     </Dialog>
-  );
+  )
 }

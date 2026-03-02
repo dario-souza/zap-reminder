@@ -1,5 +1,7 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
+import { supabase } from './supabase';
+
 export async function apiFetch(endpoint: string, options: RequestInit = {}) {
   const url = `${API_URL}${endpoint}`;
   
@@ -21,10 +23,21 @@ export async function apiFetch(endpoint: string, options: RequestInit = {}) {
   }
 
   const response = await fetch(url, config);
-  const data = await response.json();
+  let data: any;
+  const contentType = response.headers.get('content-type') || '';
+  if (contentType.includes('application/json')) {
+    data = await response.json();
+  } else {
+    const text = await response.text();
+    if (!response.ok) {
+      throw new Error(text || 'Erro na requisição');
+    }
+    data = { message: text };
+  }
 
   if (!response.ok) {
-    throw new Error(data.error || 'Erro na requisição');
+    const errMsg = data?.error ?? data?.message ?? 'Erro na requisição';
+    throw new Error(errMsg);
   }
 
   return data;
@@ -43,10 +56,9 @@ export const authApi = {
       body: JSON.stringify({ name, email, password }),
     }),
 
-  logout: () =>
-    apiFetch('/auth/logout', {
-      method: 'POST',
-    }),
+  logout: async () => {
+    await supabase.auth.signOut();
+  },
 
   me: () =>
     apiFetch('/auth/me'),
