@@ -25,14 +25,20 @@ export async function apiFetch(endpoint: string, options: RequestInit = {}) {
   const response = await fetch(url, config);
   let data: any;
   const contentType = response.headers.get('content-type') || '';
+  
   if (contentType.includes('application/json')) {
     data = await response.json();
   } else {
     const text = await response.text();
-    if (!response.ok) {
-      throw new Error(text || 'Erro na requisição');
+    // Tenta fazer parse como JSON mesmo sem content-type
+    try {
+      data = JSON.parse(text);
+    } catch {
+      if (!response.ok) {
+        throw new Error(text || `Erro ${response.status}: ${response.statusText}`);
+      }
+      data = { message: text };
     }
-    data = { message: text };
   }
 
   if (!response.ok) {

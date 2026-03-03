@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { messagesApi } from "@/lib/api";
-import { RefreshCw, Smartphone, CheckCircle2, AlertCircle, QrCode, Copy, ExternalLink } from "lucide-react";
+import { RefreshCw, Smartphone, CheckCircle2, AlertCircle, QrCode } from "lucide-react";
 
 interface QRCodeModalProps {
   open: boolean;
@@ -23,50 +23,37 @@ export function QRCodeModal({ open, onOpenChange, onConnected }: QRCodeModalProp
   const [status, setStatus] = useState<string>("loading");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [pairingCode, setPairingCode] = useState<string | null>(null);
-  const [retryCount, setRetryCount] = useState(0);
-  const [message, setMessage] = useState<string | null>(null);
-  const WAHA_DASHBOARD_URL = "http://localhost:3003/dashboard";
+  const [isPolling, setIsPolling] = useState(false);
 
   const fetchQRCode = async () => {
     setIsLoading(true);
     setError(null);
     setQrCode(null);
-    setPairingCode(null);
-    setMessage(null);
     
     try {
       console.log('Iniciando conexão WhatsApp...');
       
-      // Usa o backend para iniciar a sessão
-      setMessage('Iniciando sessão...');
-      const result = await messagesApi.startWhatsAppSession();
-      console.log('Resultado:', result);
+      // Chama getQRCode que agora cria a sessão automaticamente
+      const qrData = await messagesApi.getQRCode();
+      console.log('QR Data:', qrData);
       
-      if (result.session?.status === 'WORKING') {
+      // Se já está conectado
+      if (qrData.connected) {
         onConnected();
         onOpenChange(false);
         return;
       }
       
-      if (result.session?.status === 'SCAN_QR_CODE') {
-        setMessage('QR Code disponível no Dashboard!');
+      // Se tem QR Code
+      if (qrData?.qr) {
+        setQrCode(qrData.qr);
         setStatus('SCAN_QR_CODE');
-        // Tenta obter o QR Code via API
-        try {
-          const qrData = await messagesApi.getQRCode();
-          if (qrData.qrCode) {
-            setQrCode(qrData.qrCode);
-            setMessage(null);
-          }
-        } catch (qrError) {
-          console.log('QR Code não disponível via API, use o Dashboard');
-        }
-        return;
+        setIsPolling(true); // Inicia polling para detectar conexão
+      } else if (qrData?.error) {
+        setError(qrData.error);
+      } else {
+        setError('Não foi possível obter o QR Code. Tente novamente.');
       }
-      
-      // Qualquer outro status, mostra mensagem
-      setMessage(result.message || 'Aguardando conexão...');
       
     } catch (err: any) {
       console.error('Erro ao iniciar sessão:', err);
@@ -82,9 +69,9 @@ export function QRCodeModal({ open, onOpenChange, onConnected }: QRCodeModalProp
     }
   }, [open]);
 
-  // Polling para verificar conexão
+  // Polling para verificar conexão quando tem QR Code
   useEffect(() => {
-    if (!open || status === "open" || status === "connected") return;
+    if (!open || !isPolling) return;
 
     const interval = setInterval(async () => {
       try {
@@ -101,31 +88,7 @@ export function QRCodeModal({ open, onOpenChange, onConnected }: QRCodeModalProp
     }, 3000);
 
     return () => clearInterval(interval);
-  }, [open, status, onConnected, onOpenChange]);
-
-  // Retry automático se não tiver QR Code
-  useEffect(() => {
-    if (!open || qrCode || isLoading || error || retryCount >= 3) return;
-
-    const timer = setTimeout(() => {
-      console.log(`Tentando novamente... (${retryCount + 1}/3)`);
-      setRetryCount(prev => prev + 1);
-      fetchQRCode();
-    }, 5000);
-
-    return () => clearTimeout(timer);
-  }, [qrCode, isLoading, error, retryCount, open]);
-
-  const copyPairingCode = () => {
-    if (pairingCode) {
-      navigator.clipboard.writeText(pairingCode);
-      alert("Código copiado! Cole no WhatsApp > Aparelhos Conectados > Conectar com número de telefone");
-    }
-  };
-
-  const openDashboard = () => {
-    window.open(`${WAHA_DASHBOARD_URL}`, '_blank');
-  };
+  }, [open, isPolling, onConnected, onOpenChange]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -158,10 +121,7 @@ export function QRCodeModal({ open, onOpenChange, onConnected }: QRCodeModalProp
           ) : isLoading ? (
             <div className="flex flex-col items-center justify-center py-8">
               <RefreshCw className="w-8 h-8 animate-spin text-green-500 mb-2" />
-              <p className="text-gray-600">Gerando QR Code...</p>
-              <p className="text-xs text-gray-400 mt-1">
-                {retryCount > 0 && `Tentativa ${retryCount}/3`}
-              </p>
+              <p className="text-gray-600">Conectando ao WhatsApp...</p>
             </div>
           ) : qrCode ? (
             <div className="flex flex-col items-center">
@@ -188,29 +148,7 @@ export function QRCodeModal({ open, onOpenChange, onConnected }: QRCodeModalProp
                   />
                 )}
               </div>
-              
-              {/* Código de pareamento (se disponível) */}
-              {pairingCode && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 w-full">
-                  <p className="text-sm text-blue-700 text-center font-medium mb-2">
-                    Ou use o código de pareamento:
-                  </p>
-                  <div className="flex items-center justify-center gap-2">
-                    <code className="bg-white px-3 py-1 rounded border text-lg font-mono">
-                      {pairingCode}
-                    </code>
-                    <Button 
-                      size="sm" 
-                      variant="ghost"
-                      onClick={copyPairingCode}
-                      title="Copiar código"
-                    >
-                      <Copy className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              )}
-              
+               
               <div className="text-center space-y-2">
                 <p className="text-sm text-gray-600">
                   <strong>Como conectar:</strong>
@@ -222,12 +160,6 @@ export function QRCodeModal({ open, onOpenChange, onConnected }: QRCodeModalProp
                   <li>Toque em &quot;Conectar um aparelho&quot;</li>
                   <li>Aponte a câmera para o QR Code acima</li>
                 </ol>
-                
-                {pairingCode && (
-                  <p className="text-xs text-gray-400 mt-2">
-                    Ou: Toque em &quot;Conectar com número de telefone&quot; e digite o código acima
-                  </p>
-                )}
               </div>
 
               <Button 
@@ -244,48 +176,19 @@ export function QRCodeModal({ open, onOpenChange, onConnected }: QRCodeModalProp
           ) : (
             <div className="text-center py-6">
               <QrCode className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-              
-              {message ? (
-                <div className="space-y-3">
-                  <p className="text-gray-600">{message}</p>
-                  
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                    <p className="text-sm text-yellow-700 mb-3">
-                      <strong>Alternativa:</strong> Acesse o Dashboard da WAHA API
-                    </p>
-                    <Button 
-                      onClick={openDashboard}
-                      variant="outline"
-                      className="w-full"
-                    >
-                      <ExternalLink className="w-4 h-4 mr-2" />
-                      Abrir WAHA Dashboard
-                    </Button>
-                    <p className="text-xs text-gray-400 mt-2">
-                      Login: admin | Senha: zapreminder123
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <p className="text-gray-600">QR Code não disponível</p>
-                  <p className="text-sm text-gray-400 mt-1">
-                    Aguardando geração do código...
-                  </p>
-                </>
-              )}
-              
-              {retryCount >= 3 && !message && (
-                <Button 
-                  onClick={fetchQRCode} 
-                  variant="outline" 
-                  size="sm" 
-                  className="mt-3"
-                >
-                  <RefreshCw className="w-4 h-4 mr-2" />
-                  Tentar novamente
-                </Button>
-              )}
+              <p className="text-gray-600">Aguardando QR Code...</p>
+              <p className="text-sm text-gray-400 mt-1">
+                O QR Code será exibido aqui após a conexão ser iniciada.
+              </p>
+              <Button 
+                onClick={fetchQRCode} 
+                variant="outline" 
+                size="sm" 
+                className="mt-3"
+              >
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Obter QR Code
+              </Button>
             </div>
           )}
         </div>
