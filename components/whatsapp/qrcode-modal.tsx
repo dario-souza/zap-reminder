@@ -47,7 +47,13 @@ export function QRCodeModal({ open, onOpenChange, onConnected }: QRCodeModalProp
       // Se tem QR Code
       if (qrData?.qr) {
         setQrCode(qrData.qr);
-        setStatus('SCAN_QR_CODE');
+        
+        // NOWEB usa pairing code em vez de QR code
+        if (qrData.isPairingCode) {
+          setStatus('PAIRING_CODE');
+        } else {
+          setStatus('SCAN_QR_CODE');
+        }
         setIsPolling(true); // Inicia polling para detectar conexão
       } else if (qrData?.error) {
         setError(qrData.error);
@@ -125,41 +131,71 @@ export function QRCodeModal({ open, onOpenChange, onConnected }: QRCodeModalProp
             </div>
           ) : qrCode ? (
             <div className="flex flex-col items-center">
-              <div className="bg-white p-4 rounded-lg border-2 border-green-200 mb-4">
-                {/* QR Code como imagem base64 ou código */}
-                {qrCode.startsWith('data:image') ? (
-                  <img 
-                    src={qrCode} 
-                    alt="QR Code WhatsApp" 
-                    className="w-64 h-64"
-                  />
-                ) : qrCode.startsWith('http') ? (
-                  <img 
-                    src={qrCode} 
-                    alt="QR Code WhatsApp" 
-                    className="w-64 h-64"
-                  />
-                ) : (
-                  // Se for uma string base64 pura
-                  <img 
-                    src={`data:image/png;base64,${qrCode}`} 
-                    alt="QR Code WhatsApp" 
-                    className="w-64 h-64"
-                  />
-                )}
-              </div>
+              {/* Exibe pairing code como texto para NOWEB */}
+              {status === 'PAIRING_CODE' ? (
+                <div className="bg-green-50 border-2 border-green-200 rounded-lg p-6 mb-4 text-center">
+                  <p className="text-sm text-green-700 mb-2">Código de Pareamento:</p>
+                  <p className="text-3xl font-mono font-bold text-green-800 tracking-widest">
+                    {qrCode.split(',')[0]}
+                  </p>
+                  <p className="text-xs text-green-600 mt-3">
+                    Abra o WhatsApp → Dispositivos conectados → Conectar com número de telefone
+                  </p>
+                </div>
+              ) : (
+                <div className="bg-white p-4 rounded-lg border-2 border-green-200 mb-4">
+                  {/* QR Code como imagem base64 ou código */}
+                  {qrCode.startsWith('data:image') ? (
+                    <img 
+                      src={qrCode} 
+                      alt="QR Code WhatsApp" 
+                      className="w-64 h-64"
+                    />
+                  ) : qrCode.startsWith('http') ? (
+                    <img 
+                      src={qrCode} 
+                      alt="QR Code WhatsApp" 
+                      className="w-64 h-64"
+                    />
+                  ) : (
+                    // Se for uma string base64 pura
+                    <img 
+                      src={`data:image/png;base64,${qrCode}`} 
+                      alt="QR Code WhatsApp" 
+                      className="w-64 h-64"
+                    />
+                  )}
+                </div>
+              )}
                
               <div className="text-center space-y-2">
-                <p className="text-sm text-gray-600">
-                  <strong>Como conectar:</strong>
-                </p>
-                <ol className="text-sm text-gray-500 text-left space-y-1 list-decimal list-inside">
-                  <li>Abra o WhatsApp no seu celular</li>
-                  <li>Toque em &quot;Mais opções&quot; (⋮) ou &quot;Configurações&quot;</li>
-                  <li>Selecione &quot;Aparelhos conectados&quot;</li>
-                  <li>Toque em &quot;Conectar um aparelho&quot;</li>
-                  <li>Aponte a câmera para o QR Code acima</li>
-                </ol>
+                {status === 'PAIRING_CODE' ? (
+                  <>
+                    <p className="text-sm text-gray-600">
+                      <strong>Como conectar com código:</strong>
+                    </p>
+                    <ol className="text-sm text-gray-500 text-left space-y-1 list-decimal list-inside">
+                      <li>Abra o WhatsApp no seu celular</li>
+                      <li>Toque em "Mais opções" (⋮) ou "Configurações"</li>
+                      <li>Selecione "Aparelhos conectados"</li>
+                      <li>Toque em "Conectar com número de telefone"</li>
+                      <li>Digite o código de pareamento acima</li>
+                    </ol>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm text-gray-600">
+                      <strong>Como conectar:</strong>
+                    </p>
+                    <ol className="text-sm text-gray-500 text-left space-y-1 list-decimal list-inside">
+                      <li>Abra o WhatsApp no seu celular</li>
+                      <li>Toque em "Mais opções" (⋮) ou "Configurações"</li>
+                      <li>Selecione "Aparelhos conectados"</li>
+                      <li>Toque em "Conectar um aparelho"</li>
+                      <li>Aponte a câmera para o QR Code acima</li>
+                    </ol>
+                  </>
+                )}
               </div>
 
               <Button 

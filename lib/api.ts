@@ -195,15 +195,6 @@ export const messagesApi = {
     apiFetch('/whatsapp/session/start', {
       method: 'POST',
     }),
-
-  getCronStatus: () =>
-    apiFetch('/messages/cron/status'),
-
-  toggleCron: (action: 'start' | 'stop') =>
-    apiFetch('/messages/cron/toggle', {
-      method: 'POST',
-      body: JSON.stringify({ action }),
-    }),
 };
 
 export const templatesApi = {

@@ -68,10 +68,6 @@ interface WhatsAppStatus {
   }
 }
 
-interface CronStatus {
-  isRunning: boolean
-}
-
 interface DashboardData {
   user: User | null
   contacts: Contact[]
@@ -79,7 +75,6 @@ interface DashboardData {
   templates: Template[]
   confirmations: Confirmation[]
   whatsappStatus: WhatsAppStatus | null
-  cronStatus: CronStatus | null
   loading: boolean
   error: string | null
   success: string | null
@@ -89,7 +84,6 @@ interface DashboardActions {
   refresh: () => Promise<void>
   loadData: () => Promise<void>
   checkWhatsappConnection: () => Promise<void>
-  checkCronStatus: () => Promise<void>
   handleLogout: () => Promise<void>
   handleDelete: (id: string, type: 'contact' | 'message' | 'template' | 'confirmation') => Promise<void>
   handleDeleteAll: (type: 'contacts' | 'messages' | 'templates') => Promise<void>
@@ -112,7 +106,6 @@ export function useDashboardData(): DashboardData & DashboardActions {
   const [success, setSuccess] = useState<string | null>(null)
   
   const [whatsappStatus, setWhatsappStatus] = useState<WhatsAppStatus | null>(null)
-  const [cronStatus, setCronStatus] = useState<CronStatus | null>(null)
 
   const loadData = useCallback(async () => {
     try {
@@ -141,15 +134,6 @@ export function useDashboardData(): DashboardData & DashboardActions {
     } catch (err: any) {
       console.error('Erro ao verificar WhatsApp:', err)
       setWhatsappStatus({ connected: false, configured: false })
-    }
-  }, [])
-
-  const checkCronStatus = useCallback(async () => {
-    try {
-      const status = await messagesApi.getCronStatus()
-      setCronStatus(status)
-    } catch (err: any) {
-      console.error('Erro ao verificar status do cron:', err)
     }
   }, [])
 
@@ -255,14 +239,13 @@ export function useDashboardData(): DashboardData & DashboardActions {
 
     loadData()
     checkWhatsappConnection()
-    checkCronStatus()
 
     const interval = setInterval(() => {
       confirmationsApi.getAll().then(setConfirmations).catch(console.error)
     }, 10000)
 
     return () => clearInterval(interval)
-  }, [router, loadData, checkWhatsappConnection, checkCronStatus])
+  }, [router, loadData, checkWhatsappConnection])
 
   return {
     user,
@@ -271,14 +254,12 @@ export function useDashboardData(): DashboardData & DashboardActions {
     templates,
     confirmations,
     whatsappStatus,
-    cronStatus,
     loading,
     error,
     success,
     refresh: loadData,
     loadData,
     checkWhatsappConnection,
-    checkCronStatus,
     handleLogout,
     handleDelete,
     handleDeleteAll,
