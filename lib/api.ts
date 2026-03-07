@@ -1,4 +1,4 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 import { supabase } from './supabase';
 
@@ -13,7 +13,6 @@ export async function apiFetch(endpoint: string, options: RequestInit = {}) {
     ...options,
   };
 
-  // Adiciona token se existir
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
   if (token) {
     config.headers = {
@@ -30,7 +29,6 @@ export async function apiFetch(endpoint: string, options: RequestInit = {}) {
     data = await response.json();
   } else {
     const text = await response.text();
-    // Tenta fazer parse como JSON mesmo sem content-type
     try {
       data = JSON.parse(text);
     } catch {
@@ -119,10 +117,10 @@ export const contactsApi = {
     document.body.removeChild(a);
   },
 
-  importCSV: async (csvContent: string) =>
+  importCSV: async (contacts: { name: string; phone: string; email?: string }[]) =>
     apiFetch('/contacts/import', {
       method: 'POST',
-      body: JSON.stringify({ csvContent }),
+      body: JSON.stringify({ contacts }),
     }),
 };
 
@@ -130,31 +128,30 @@ export const messagesApi = {
   getAll: () =>
     apiFetch('/messages'),
 
-  create: (data: { content: string; contactId: string; scheduledAt?: string }) =>
+  create: (data: { chatId: string; body: string; contactId?: string; templateId?: string; scheduledAt?: string }) =>
     apiFetch('/messages', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  send: (data: { chatId: string; body: string; contactId?: string; templateId?: string }) =>
+    apiFetch('/messages/send', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  schedule: (data: { chatId: string; body: string; scheduledAt: string; contactId?: string; templateId?: string }) =>
+    apiFetch('/messages/schedule', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
 
   createBulk: (data: {
     content: string;
-    contactIds: string[];
-    scheduledAt?: string;
-    sendNow?: boolean;
-    recurrenceType?: 'NONE' | 'MONTHLY';
+    recipients: { chatId: string; body: string; contactId?: string }[];
+    name?: string;
   }) =>
-    apiFetch('/messages/bulk', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    }),
-
-  createWithReminder: (data: {
-    content: string;
-    contactId: string;
-    scheduledAt: string;
-    reminderDays: 1 | 2;
-  }) =>
-    apiFetch('/messages/with-reminder', {
+    apiFetch('/messages/batch', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
@@ -164,7 +161,7 @@ export const messagesApi = {
       method: 'POST',
     }),
 
-  delete: (id: string) =>
+  cancel: (id: string) =>
     apiFetch(`/messages/${id}`, {
       method: 'DELETE',
     }),
@@ -175,24 +172,27 @@ export const messagesApi = {
     }),
 
   checkWhatsAppStatus: () =>
-    apiFetch('/whatsapp/session/status'),
+    apiFetch('/session/status'),
 
   sendTestMessage: (phone: string, message: string) =>
     apiFetch('/messages/test', {
       method: 'POST',
-      body: JSON.stringify({ phone, message }),
+      body: JSON.stringify({ 
+        phone, 
+        message 
+      }),
     }),
 
   getQRCode: () =>
-    apiFetch('/whatsapp/session/qr'),
+    apiFetch('/session/qr'),
 
   disconnectWhatsApp: () =>
-    apiFetch('/whatsapp/session/disconnect', {
+    apiFetch('/session/stop', {
       method: 'POST',
     }),
 
   startWhatsAppSession: () =>
-    apiFetch('/whatsapp/session/start', {
+    apiFetch('/session/start', {
       method: 'POST',
     }),
 };
@@ -201,13 +201,13 @@ export const templatesApi = {
   getAll: () =>
     apiFetch('/templates'),
 
-  create: (data: { name: string; content: string }) =>
+  create: (data: { name: string; body: string; category?: string }) =>
     apiFetch('/templates', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
 
-  update: (id: string, data: { name?: string; content?: string }) =>
+  update: (id: string, data: { name?: string; body?: string; category?: string }) =>
     apiFetch(`/templates/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -222,6 +222,29 @@ export const templatesApi = {
     apiFetch('/templates', {
       method: 'DELETE',
     }),
+};
+
+export const sessionApi = {
+  get: () =>
+    apiFetch('/session'),
+
+  start: () =>
+    apiFetch('/session/start', {
+      method: 'POST',
+    }),
+
+  stop: () =>
+    apiFetch('/session/stop', {
+      method: 'POST',
+    }),
+
+  logout: () =>
+    apiFetch('/session/logout', {
+      method: 'POST',
+    }),
+
+  getQr: () =>
+    apiFetch('/session/qr'),
 };
 
 export const confirmationsApi = {
