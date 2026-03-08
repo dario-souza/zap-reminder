@@ -117,11 +117,15 @@ export const contactsApi = {
     document.body.removeChild(a);
   },
 
-  importCSV: async (contacts: { name: string; phone: string; email?: string }[]) =>
-    apiFetch('/contacts/import', {
+  importCSV: async (contacts: { name: string; phone: string; email?: string }[]) => {
+    const csvContent = 'name,phone,email\n' + contacts.map(c => 
+      `"${c.name}","${c.phone}","${c.email || ''}"`
+    ).join('\n');
+    return apiFetch('/contacts/import', {
       method: 'POST',
-      body: JSON.stringify({ contacts }),
-    }),
+      body: JSON.stringify({ csvContent }),
+    });
+  },
 };
 
 export const messagesApi = {

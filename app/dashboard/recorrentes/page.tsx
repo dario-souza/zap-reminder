@@ -16,6 +16,7 @@ import {
   X
 } from 'lucide-react'
 import { useMessages, useContacts } from '@/hooks'
+import { getChatId } from '@/types'
 
 export default function RecorrentesPage() {
   const { messages, loading: messagesLoading } = useMessages()
@@ -30,7 +31,7 @@ export default function RecorrentesPage() {
   }, [messages])
 
   const getContact = (chatId: string) => {
-    return contacts.find(c => c.chat_id === chatId)
+    return contacts.find(c => getChatId(c.phone) === chatId)
   }
 
   const filteredMessages = useMemo(() => {

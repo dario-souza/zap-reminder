@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Search, X, Smile, Variable, Send, Calendar, Minus } from 'lucide-react'
 import { useContacts, useMessages } from '@/hooks'
 import type { Contact, CreateMessageDto } from '@/types'
+import { getChatId } from '@/types'
 
 export default function EnviarPage() {
   const router = useRouter()
@@ -61,13 +62,11 @@ export default function EnviarPage() {
 
     try {
       for (const contact of selectedContacts) {
-        const messageData: CreateMessageDto = {
-          chatId: contact.chat_id,
+        await send({
+          chatId: getChatId(contact.phone),
           body: message,
           contactId: contact.id,
-        }
-        const created = await send(messageData)
-        await sendNow(created.id)
+        })
       }
       setSuccess(`${selectedContacts.length} mensagem(s) enviada(s) com sucesso!`)
       setMessage('')

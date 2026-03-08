@@ -14,8 +14,9 @@ import {
   Eye,
   Filter
 } from 'lucide-react'
-import { useMessageHistory, useContacts } from '@/hooks'
+import { useMessageHistory, useContacts, useMessages } from '@/hooks'
 import type { Message, MessageStatus } from '@/types'
+import { getChatId } from '@/types'
 
 export default function HistoricoPage() {
   const { 
@@ -27,17 +28,18 @@ export default function HistoricoPage() {
     totalDelivered,
     totalRead,
     totalFailed,
-    messages,
     loading,
     refetch 
   } = useMessageHistory()
+  
+  const { messages } = useMessages()
   const { contacts } = useContacts()
   
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
 
   const getContact = (chatId: string) => {
-    return contacts.find(c => c.chat_id === chatId)
+    return contacts.find(c => getChatId(c.phone) === chatId)
   }
 
   const filteredMessages = useMemo(() => {

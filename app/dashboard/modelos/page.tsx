@@ -23,7 +23,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { useTemplates } from '@/hooks'
-import type { Template } from '@/types'
+import type { Template, TemplateCategory } from '@/types'
 
 export default function ModelosPage() {
   const { templates, loading, create, update, remove } = useTemplates()
@@ -32,7 +32,7 @@ export default function ModelosPage() {
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null)
   const [newTemplateName, setNewTemplateName] = useState('')
   const [newTemplateContent, setNewTemplateContent] = useState('')
-  const [newTemplateCategory, setNewTemplateCategory] = useState<string>('general')
+  const [newTemplateCategory, setNewTemplateCategory] = useState<TemplateCategory>('general')
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
 
@@ -183,7 +183,7 @@ export default function ModelosPage() {
                   <select
                     className="w-full mt-1 p-2 border rounded-md"
                     value={newTemplateCategory}
-                    onChange={(e) => setNewTemplateCategory(e.target.value)}
+                    onChange={(e) => setNewTemplateCategory(e.target.value as TemplateCategory)}
                   >
                     <option value="general">Geral</option>
                     <option value="marketing">Marketing</option>

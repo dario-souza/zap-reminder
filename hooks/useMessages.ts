@@ -57,7 +57,7 @@ export function useMessages(): UseMessagesReturn {
   }
 
   const cancel = async (id: string): Promise<void> => {
-    await messagesApi.delete(id)
+    await messagesApi.cancel(id)
     await fetchMessages()
   }
 

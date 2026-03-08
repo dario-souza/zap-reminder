@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { useScheduledMessages, useContacts, useMessages } from '@/hooks'
 import type { Message } from '@/types'
+import { getChatId } from '@/types'
 
 export default function AgendamentosPage() {
   const { scheduledMessages, sentMessages, cancelledMessages, loading, refetch, sendNow, cancel } = useScheduledMessages()
@@ -36,7 +37,7 @@ export default function AgendamentosPage() {
     if (!searchTerm) return scheduledMessages
     const term = searchTerm.toLowerCase()
     return scheduledMessages.filter((msg) => {
-      const contact = contacts.find(c => c.chat_id === msg.chat_id)
+      const contact = contacts.find(c => getChatId(c.phone) === msg.chat_id)
       return (
         msg.body.toLowerCase().includes(term) ||
         contact?.name.toLowerCase().includes(term) ||
@@ -46,7 +47,7 @@ export default function AgendamentosPage() {
   }, [scheduledMessages, contacts, searchTerm])
 
   const getContact = (chatId: string) => {
-    return contacts.find(c => c.chat_id === chatId)
+    return contacts.find(c => getChatId(c.phone) === chatId)
   }
 
   const formatDate = (dateStr: string) => {
@@ -204,7 +205,7 @@ export default function AgendamentosPage() {
               >
                 <option value="">Selecione um contato</option>
                 {contacts.map((contact) => (
-                  <option key={contact.id} value={contact.chat_id}>
+                  <option key={contact.id} value={getChatId(contact.phone)}>
                     {contact.name} - {contact.phone}
                   </option>
                 ))}

@@ -3,26 +3,25 @@ export interface Contact {
   user_id: string
   name: string
   phone: string
-  chat_id: string
   email?: string
-  notes?: string
-  is_active: boolean
   created_at: string
   updated_at: string
+}
+
+export const getChatId = (phone: string): string => {
+  return `${phone}@c.us`
 }
 
 export interface CreateContactDto {
   name: string
   phone: string
   email?: string
-  notes?: string
 }
 
 export interface UpdateContactDto {
   name?: string
   phone?: string
   email?: string
-  notes?: string
 }
 
 export type MessageStatus = 'pending' | 'sent' | 'delivered' | 'read' | 'failed' | 'cancelled'

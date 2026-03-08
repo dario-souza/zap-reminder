@@ -42,7 +42,7 @@ export function useWhatsApp(): UseWhatsAppReturn {
 
       const statusValue: WhatsAppStatus = {
         connected: isConnected,
-        status: isConnected ? 'working' : ((statusStr as string)?.toLowerCase() || 'stopped'),
+        status: (isConnected ? 'working' : ((statusStr as string)?.toLowerCase() || 'stopped')) as 'failed' | 'stopped' | 'starting' | 'scan_qr_code' | 'working',
         phone: data.phone,
         pushName: data.pushName
       }

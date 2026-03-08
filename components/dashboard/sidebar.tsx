@@ -20,6 +20,7 @@ import {
   Smartphone,
   FileText,
   Home,
+  Users,
 } from 'lucide-react'
 
 interface SidebarProps {
@@ -70,6 +71,11 @@ const navItems = [
     title: 'Conexão',
     href: '/dashboard/conexao',
     icon: Smartphone,
+  },
+  {
+    title: 'Contatos',
+    href: '/dashboard/contatos',
+    icon: Users,
   },
 ]
 
