@@ -166,8 +166,8 @@ export const messagesApi = {
     }),
 
   cancel: (id: string) =>
-    apiFetch(`/messages/${id}`, {
-      method: 'DELETE',
+    apiFetch(`/messages/${id}/cancel`, {
+      method: 'POST',
     }),
 
   deleteAll: () =>

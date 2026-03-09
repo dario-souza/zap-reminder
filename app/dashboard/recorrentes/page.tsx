@@ -27,20 +27,22 @@ export default function RecorrentesPage() {
   const loading = messagesLoading || contactsLoading
 
   const recurrentMessages = useMemo(() => {
-    return messages.filter(m => m.type === 'batch' || m.type === 'scheduled')
+    return messages.filter(m => m.recurrence_type && m.recurrence_type !== 'NONE')
   }, [messages])
 
-  const getContact = (chatId: string) => {
-    return contacts.find(c => getChatId(c.phone) === chatId)
+  const getContact = (phone: string | undefined) => {
+    if (!phone) return null
+    const cleanPhone = phone.replace('@c.us', '').replace('@g.us', '')
+    return contacts.find(c => c.phone === cleanPhone)
   }
 
   const filteredMessages = useMemo(() => {
     if (!searchTerm) return recurrentMessages
     const term = searchTerm.toLowerCase()
     return recurrentMessages.filter(m => {
-      const contact = getContact(m.chat_id)
+      const contact = getContact(m.phone)
       return (
-        m.body.toLowerCase().includes(term) ||
+        (m.content || m.body || '').toLowerCase().includes(term) ||
         contact?.name.toLowerCase().includes(term) ||
         contact?.phone.includes(term)
       )
@@ -187,7 +189,7 @@ export default function RecorrentesPage() {
           ) : (
             <div className="space-y-4">
               {filteredMessages.map((msg) => {
-                const contact = getContact(msg.chat_id)
+                const contact = getContact(msg.phone)
                 return (
                   <div
                     key={msg.id}
@@ -199,14 +201,14 @@ export default function RecorrentesPage() {
                           {contact?.name || 'Desconhecido'}
                         </span>
                         <span className="text-sm text-slate-500">
-                          ({contact?.phone || msg.chat_id})
+                          ({contact?.phone || msg.phone || '-'})
                         </span>
                         <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
-                          {msg.type === 'batch' ? 'Lote' : 'Agendada'}
+                          {msg.recurrence_type === 'DAILY' ? 'Diário' : msg.recurrence_type === 'WEEKLY' ? 'Semanal' : msg.recurrence_type === 'MONTHLY' ? 'Mensal' : 'Recorrente'}
                         </span>
                       </div>
                       <p className="text-sm text-slate-600 dark:text-slate-400 truncate">
-                        {msg.body}
+                        {msg.content || msg.body}
                       </p>
                       <div className="flex items-center gap-4 mt-2 text-sm text-slate-500">
                         <div className="flex items-center gap-1">

@@ -38,8 +38,10 @@ export default function HistoricoPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
 
-  const getContact = (chatId: string) => {
-    return contacts.find(c => getChatId(c.phone) === chatId)
+  const getContact = (phone: string | undefined) => {
+    if (!phone) return null
+    const cleanPhone = phone.replace('@c.us', '').replace('@g.us', '')
+    return contacts.find(c => c.phone === cleanPhone)
   }
 
   const filteredMessages = useMemo(() => {
@@ -52,9 +54,9 @@ export default function HistoricoPage() {
     if (searchTerm) {
       const term = searchTerm.toLowerCase()
       filtered = filtered.filter(m => {
-        const contact = getContact(m.chat_id)
+        const contact = getContact(m.phone)
         return (
-          m.body.toLowerCase().includes(term) ||
+          (m.content || m.body || '').toLowerCase().includes(term) ||
           contact?.name.toLowerCase().includes(term) ||
           contact?.phone.includes(term)
         )
@@ -233,7 +235,7 @@ export default function HistoricoPage() {
           ) : (
             <div className="space-y-4">
               {filteredMessages.map((msg) => {
-                const contact = getContact(msg.chat_id)
+                const contact = getContact(msg.phone)
                 return (
                   <div
                     key={msg.id}
@@ -245,7 +247,7 @@ export default function HistoricoPage() {
                           {contact?.name || 'Desconhecido'}
                         </span>
                         <span className="text-sm text-slate-500">
-                          ({contact?.phone || msg.chat_id})
+                          ({contact?.phone || msg.phone || '-'})
                         </span>
                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium flex items-center gap-1 ${getStatusColor(msg.status)}`}>
                           {getStatusIcon(msg.status)}
@@ -253,7 +255,7 @@ export default function HistoricoPage() {
                         </span>
                       </div>
                       <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-2">
-                        {msg.body}
+                        {msg.content || msg.body}
                       </p>
                       <div className="flex items-center gap-4 mt-2 text-sm text-slate-500 flex-wrap">
                         <div className="flex items-center gap-1">

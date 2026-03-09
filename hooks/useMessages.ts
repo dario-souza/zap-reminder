@@ -77,15 +77,15 @@ export function useScheduledMessages() {
   const { messages, loading, error, refetch, sendNow, cancel } = useMessages()
   
   const scheduledMessages = messages.filter(
-    (m) => m.type === 'scheduled' && m.status === 'pending'
+    (m) => (m.status === 'SCHEDULED' || m.status === 'PENDING' || m.status === 'pending') && m.scheduled_at
   )
   
   const sentMessages = messages.filter(
-    (m) => m.type === 'scheduled' && m.status === 'sent'
+    (m) => (m.status === 'SENT' || m.status === 'sent')
   )
   
   const cancelledMessages = messages.filter(
-    (m) => m.status === 'cancelled'
+    (m) => m.status === 'cancelled' || m.status === 'CANCELLED'
   )
 
   return {
@@ -106,10 +106,10 @@ export function useScheduledMessages() {
 export function useMessageHistory() {
   const { messages, loading, error, refetch } = useMessages()
   
-  const sentMessages = messages.filter((m) => m.status === 'sent')
-  const deliveredMessages = messages.filter((m) => m.status === 'delivered')
-  const readMessages = messages.filter((m) => m.status === 'read')
-  const failedMessages = messages.filter((m) => m.status === 'failed')
+  const sentMessages = messages.filter((m) => m.status === 'SENT' || m.status === 'sent')
+  const deliveredMessages = messages.filter((m) => m.status === 'delivered' || m.status === 'DELIVERED')
+  const readMessages = messages.filter((m) => m.status === 'read' || m.status === 'READ')
+  const failedMessages = messages.filter((m) => m.status === 'failed' || m.status === 'FAILED')
 
   return {
     sentMessages,

@@ -24,29 +24,35 @@ export interface UpdateContactDto {
   email?: string
 }
 
-export type MessageStatus = 'pending' | 'sent' | 'delivered' | 'read' | 'failed' | 'cancelled'
+export type MessageStatus = 'pending' | 'sent' | 'delivered' | 'read' | 'failed' | 'cancelled' | 'SCHEDULED' | 'PENDING' | 'SENT' | 'DELIVERED' | 'READ' | 'FAILED' | 'CANCELLED'
 export type MessageType = 'immediate' | 'scheduled' | 'batch' | 'rsvp'
 
 export interface Message {
   id: string
   user_id: string
-  chat_id: string
-  body: string
-  type: MessageType
+  phone: string
+  content: string
+  body?: string
+  chat_id?: string
+  type?: MessageType
   status: MessageStatus
-  session_name: string
   contact_id?: string
-  batch_id?: string
-  template_id?: string
   scheduled_at?: string
   sent_at?: string
   delivered_at?: string
   read_at?: string
   job_id?: string
-  waha_message_id?: string
+  wa_message_id?: string
   error?: string
   created_at: string
   updated_at: string
+  recurrence_type?: string
+  recurrence_cron?: string
+  reminder_days?: number
+  is_reminder?: boolean
+  reminder_sent?: boolean
+  next_send_at?: string
+  parent_message_id?: string
 }
 
 export interface CreateMessageDto {
