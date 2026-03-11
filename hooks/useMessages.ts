@@ -77,7 +77,8 @@ export function useScheduledMessages() {
   const { messages, loading, error, refetch, sendNow, cancel } = useMessages()
   
   const scheduledMessages = messages.filter(
-    (m) => (m.status === 'SCHEDULED' || m.status === 'PENDING' || m.status === 'pending') && m.scheduled_at
+    (m) => (m.status === 'SCHEDULED' || m.status === 'PENDING' || m.status === 'pending') && 
+           (m.scheduled_at || m.recurrence_type !== 'NONE')
   )
   
   const sentMessages = messages.filter(

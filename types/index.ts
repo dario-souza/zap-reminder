@@ -61,6 +61,8 @@ export interface CreateMessageDto {
   contactId?: string
   templateId?: string
   scheduledAt?: string
+  recurrenceType?: string
+  recurrenceCron?: string
 }
 
 export interface BatchMessageDto {

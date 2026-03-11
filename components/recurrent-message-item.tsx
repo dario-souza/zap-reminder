@@ -1,0 +1,94 @@
+'use client'
+
+import { useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import { Message, Contact } from '@/types'
+import { getChatId } from '@/types'
+import { Send, Trash2, Calendar, Repeat } from 'lucide-react'
+
+interface RecurrentMessageItemProps {
+  message: Message
+  contact: Contact | null
+  onSendNow: (message: Message) => void
+  onCancel: (message: Message) => void
+  formatDate: (dateStr: string | null | undefined) => string
+}
+
+export function RecurrentMessageItem({
+  message,
+  contact,
+  onSendNow,
+  onCancel,
+  formatDate
+}: RecurrentMessageItemProps) {
+  const [isHovered, setIsHovered] = useState(false)
+
+  return (
+    <Card 
+      className="border border-slate-200 dark:border-slate-700 mb-4"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="font-medium text-slate-900 dark:text-slate-100">
+                {contact?.name || 'Desconhecido'}
+              </span>
+              <span className="text-sm text-slate-500">
+                ({contact?.phone || message.phone || '-'})
+              </span>
+              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                message.status === 'PENDING' || message.status === 'pending' || message.status === 'SCHEDULED'
+                  ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                  : message.status === 'SENT' || message.status === 'sent'
+                  ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                  : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+              }`}>
+                {message.status === 'PENDING' || message.status === 'pending' || message.status === 'SCHEDULED' 
+                  ? 'Pendente' 
+                  : message.status === 'SENT' || message.status === 'sent' 
+                  ? 'Enviada' 
+                  : 'Cancelada'}
+              </span>
+              {message.recurrence_type && message.recurrence_type !== 'NONE' && (
+                <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
+                  {message.recurrence_type === 'WEEKLY' ? 'Semanal' : 'Mensal'}
+                </span>
+              )}
+            </div>
+            <p className="text-sm text-slate-600 dark:text-slate-400 truncate">
+              {message.content}
+            </p>
+            <div className="flex items-center gap-2 mt-2 text-sm text-slate-500">
+              <Calendar className="w-4 h-4" />
+              {formatDate(message.scheduled_at || message.next_send_at)}
+            </div>
+          </div>
+          <div className="flex items-center gap-2 ml-4">
+            {(message.status === 'PENDING' || message.status === 'pending' || message.status === 'SCHEDULED') && (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => onSendNow(message)}
+                className="hover:bg-green-100 dark:hover:bg-green-900/30"
+              >
+                <Send className="w-4 h-4 text-green-600 dark:text-green-400" />
+              </Button>
+            )}
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30"
+              onClick={() => onCancel(message)}
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
