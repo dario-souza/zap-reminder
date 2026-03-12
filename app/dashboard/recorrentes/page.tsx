@@ -23,7 +23,18 @@ import { RecurrentMessageItem } from '@/components/recurrent-message-item'
 import { RecurrentMessageForm } from '@/components/recurrent-message-form'
 
 export default function RecorrentesPage() {
-  const { scheduledMessages, sentMessages, cancelledMessages, loading, refetch, sendNow, cancel } = useScheduledMessages()
+  const { 
+    recurringMessages, 
+    sentRecurringMessages, 
+    cancelledRecurringMessages,
+    totalRecurring,
+    totalSentRecurring,
+    totalCancelledRecurring,
+    loading, 
+    refetch, 
+    sendNow, 
+    cancel 
+  } = useScheduledMessages()
   const { contacts, loading: contactsLoading } = useContacts()
   const { schedule, send } = useMessages()
   
@@ -51,11 +62,10 @@ export default function RecorrentesPage() {
 
   const activeRecurringMessages = useMemo(() => {
     // Mostra todas as mensagens recorrentes que não estão canceladas
-    return scheduledMessages.filter((msg) => 
-      msg.recurrence_type && msg.recurrence_type !== 'NONE' && 
+    return recurringMessages.filter((msg) => 
       (msg.status !== 'CANCELLED' && msg.status !== 'cancelled')
     )
-  }, [scheduledMessages])
+  }, [recurringMessages])
 
   const filteredMessages = useMemo(() => {
     // Mostra todas as mensagens recorrentes ativas (que têm recurrence_type != NONE)
@@ -235,7 +245,7 @@ export default function RecorrentesPage() {
               <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
                 {activeRecurringMessages.length}
               </p>
-              <p className="text-sm text-slate-500">Ativas</p>
+              <p className="text-sm text-slate-500">Recorrentes</p>
             </div>
           </CardContent>
         </Card>
@@ -247,7 +257,7 @@ export default function RecorrentesPage() {
             </div>
             <div>
               <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-                {sentMessages.length}
+                {totalSentRecurring}
               </p>
               <p className="text-sm text-slate-500">Enviadas</p>
             </div>
@@ -261,7 +271,7 @@ export default function RecorrentesPage() {
             </div>
             <div>
               <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-                {cancelledMessages.length}
+                {totalCancelledRecurring}
               </p>
               <p className="text-sm text-slate-500">Canceladas</p>
             </div>

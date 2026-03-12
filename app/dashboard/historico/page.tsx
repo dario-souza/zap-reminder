@@ -102,6 +102,16 @@ export default function HistoricoPage() {
     }
   }
 
+  const getMessageType = (message: Message) => {
+    if (message.recurrence_type && message.recurrence_type !== 'NONE') {
+      return 'Recorrente'
+    }
+    if (message.scheduled_at) {
+      return 'Agendada'
+    }
+    return 'Normal'
+  }
+
   const getStatusColor = (status: MessageStatus) => {
     switch (status) {
       case 'sent':
@@ -252,6 +262,9 @@ export default function HistoricoPage() {
                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium flex items-center gap-1 ${getStatusColor(msg.status)}`}>
                           {getStatusIcon(msg.status)}
                           {getStatusLabel(msg.status)}
+                        </span>
+                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300">
+                          {getMessageType(msg)}
                         </span>
                       </div>
                       <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-2">

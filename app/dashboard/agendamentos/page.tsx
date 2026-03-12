@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -12,67 +12,133 @@ import {
   Calendar, 
   Trash2,
   Send,
-  X
+  X,
+  Filter
 } from 'lucide-react'
 import { useScheduledMessages, useContacts, useMessages } from '@/hooks'
 import type { Message, Contact } from '@/types'
 import { getChatId } from '@/types'
 
-export default function AgendamentosPage() {
-  const { scheduledMessages, sentMessages, cancelledMessages, loading, refetch, sendNow, cancel } = useScheduledMessages()
-  const { contacts, loading: contactsLoading } = useContacts()
-  const { schedule, send } = useMessages()
-  
-  const [searchTerm, setSearchTerm] = useState('')
-  const [showForm, setShowForm] = useState(false)
-  const [selectedContacts, setSelectedContacts] = useState<Contact[]>([])
-  const [isSearchOpen, setIsSearchOpen] = useState(false)
-  const [message, setMessage] = useState('')
-  const [scheduledAt, setScheduledAt] = useState('')
-  const [isCreating, setIsCreating] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+type StatusFilter = 'all' | 'scheduled' | 'pending' | 'sent' | 'cancelled'
 
+function StatusBadge({ status }: { status: string }) {
+  const statusConfig = {
+    PENDING: { label: 'Pendente', class: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
+    pending: { label: 'Pendente', class: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
+    SCHEDULED: { label: 'Agendada', class: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
+    SENT: { label: 'Enviada', class: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' },
+    sent: { label: 'Enviada', class: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' },
+    CANCELLED: { label: 'Cancelada', class: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
+    cancelled: { label: 'Cancelada', class: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
+  }
+  
+  const config = statusConfig[status as keyof typeof statusConfig] || { 
+    label: status, 
+    class: 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300' 
+  }
+  
+  return (
+    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${config.class}`}>
+      {config.label}
+    </span>
+  )
+}
+
+function ContactSearch({ 
+  contacts, 
+  searchTerm, 
+  onSearchChange, 
+  onSelectContact,
+  selectedContacts,
+  onRemoveContact 
+}: {
+  contacts: Contact[]
+  searchTerm: string
+  onSearchChange: (value: string) => void
+  onSelectContact: (contact: Contact) => void
+  selectedContacts: Contact[]
+  onRemoveContact: (id: string) => void
+}) {
+  const [isOpen, setIsOpen] = useState(false)
+  
   const filteredContacts = useMemo(() => {
-    if (!searchTerm) return contacts
+    if (!searchTerm) return []
     const term = searchTerm.toLowerCase()
     return contacts.filter(
       (contact) =>
         contact.name.toLowerCase().includes(term) ||
         contact.phone.includes(term)
-    )
+    ).slice(0, 5)
   }, [contacts, searchTerm])
 
-  const addContact = (contact: Contact) => {
-    if (!selectedContacts.find((c) => c.id === contact.id)) {
-      setSelectedContacts([...selectedContacts, contact])
-    }
-    setSearchTerm('')
-    setIsSearchOpen(false)
-  }
+  return (
+    <div className="relative">
+      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+      <Input
+        placeholder="Buscar contatos..."
+        value={searchTerm}
+        onChange={(e) => onSearchChange(e.target.value)}
+        onFocus={() => setIsOpen(true)}
+        onBlur={() => setTimeout(() => setIsOpen(false), 200)}
+        className="pl-10"
+      />
+      {isOpen && filteredContacts.length > 0 && (
+        <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg max-h-60 overflow-y-auto z-10">
+          {filteredContacts.map((contact) => (
+            <button
+              key={contact.id}
+              onClick={() => onSelectContact(contact)}
+              className="w-full p-3 text-left hover:bg-slate-100 dark:hover:bg-slate-700 flex flex-col"
+            >
+              <span className="font-medium text-slate-900 dark:text-slate-100">
+                {contact.name}
+              </span>
+              <span className="text-sm text-slate-500">{contact.phone}</span>
+            </button>
+          ))}
+        </div>
+      )}
+      {isOpen && searchTerm && filteredContacts.length === 0 && (
+        <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg p-3 z-10">
+          <p className="text-sm text-slate-500 text-center">Nenhum contato encontrado</p>
+        </div>
+      )}
+      
+      {selectedContacts.length > 0 && (
+        <div className="flex flex-wrap gap-2 mt-2">
+          {selectedContacts.map((contact) => (
+            <div
+              key={contact.id}
+              className="flex items-center gap-1 bg-slate-100 dark:bg-slate-700 px-3 py-1.5 rounded-full border border-slate-200 dark:border-slate-600"
+            >
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                {contact.name}
+              </span>
+              <button
+                onClick={() => onRemoveContact(contact.id)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 flex items-center justify-center"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
-  const removeContact = (contactId: string) => {
-    setSelectedContacts(selectedContacts.filter((c) => c.id !== contactId))
-  }
-
-  const filteredMessages = useMemo(() => {
-    if (!searchTerm) return scheduledMessages
-    const term = searchTerm.toLowerCase()
-    return scheduledMessages.filter((msg) => {
-      const contact = contacts.find(c => c.phone === msg.phone?.replace('@c.us', ''))
-      return (
-        msg.content?.toLowerCase().includes(term) ||
-        contact?.name.toLowerCase().includes(term) ||
-        contact?.phone.includes(term)
-      )
-    })
-  }, [scheduledMessages, contacts, searchTerm])
-
-  const getContact = (phone: string | undefined) => {
-    if (!phone) return null
-    const cleanPhone = phone.replace('@c.us', '').replace('@g.us', '')
-    return contacts.find(c => c.phone === cleanPhone)
-  }
-
+function MessageCard({ 
+  message, 
+  contact,
+  onSendNow, 
+  onCancel 
+}: { 
+  message: Message
+  contact: Contact | null | undefined
+  onSendNow: () => void
+  onCancel: () => void
+}) {
   const formatDate = (dateStr: string | null | undefined) => {
     if (!dateStr) return '-'
     return new Intl.DateTimeFormat('pt-BR', {
@@ -84,7 +150,129 @@ export default function AgendamentosPage() {
     }).format(new Date(dateStr))
   }
 
-  const handleSendNow = async (msg: Message) => {
+  const isPending = message.status === 'PENDING' || message.status === 'pending'
+  const isScheduled = message.status === 'SCHEDULED'
+
+  return (
+    <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700">
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="font-medium text-slate-900 dark:text-slate-100">
+            {contact?.name || 'Desconhecido'}
+          </span>
+          <span className="text-sm text-slate-500">
+            ({contact?.phone || message.phone || '-'})
+          </span>
+          <StatusBadge status={message.status} />
+        </div>
+        <p className="text-sm text-slate-600 dark:text-slate-400 truncate">
+          {message.content}
+        </p>
+        <div className="flex items-center gap-2 mt-2 text-sm text-slate-500">
+          <Calendar className="w-4 h-4" />
+          {formatDate(message.scheduled_at || message.next_send_at)}
+        </div>
+      </div>
+      <div className="flex items-center gap-2 ml-4">
+        {(isPending || isScheduled) && (
+          <>
+            <Button variant="ghost" size="icon" onClick={onSendNow}>
+              <Send className="w-4 h-4" />
+            </Button>
+          </>
+        )}
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="text-red-500"
+          onClick={onCancel}
+        >
+          <Trash2 className="w-4 h-4" />
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+export default function AgendamentosPage() {
+  const { 
+    scheduledMessages, 
+    sentScheduledMessages, 
+    cancelledScheduledMessages,
+    totalScheduled, 
+    totalSentScheduled, 
+    totalCancelledScheduled,
+    loading, 
+    refetch, 
+    sendNow, 
+    cancel 
+  } = useScheduledMessages()
+  
+  const { contacts, loading: contactsLoading } = useContacts()
+  const { schedule, send } = useMessages()
+  
+  const [searchTerm, setSearchTerm] = useState('')
+  const [contactSearchTerm, setContactSearchTerm] = useState('')
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+  const [showForm, setShowForm] = useState(false)
+  const [selectedContacts, setSelectedContacts] = useState<Contact[]>([])
+  const [message, setMessage] = useState('')
+  const [scheduledAt, setScheduledAt] = useState('')
+  const [isCreating, setIsCreating] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const addContact = useCallback((contact: Contact) => {
+    if (!selectedContacts.find((c) => c.id === contact.id)) {
+      setSelectedContacts([...selectedContacts, contact])
+    }
+    setContactSearchTerm('')
+  }, [selectedContacts])
+
+  const removeContact = useCallback((contactId: string) => {
+    setSelectedContacts(selectedContacts.filter((c) => c.id !== contactId))
+  }, [selectedContacts])
+
+  const filteredMessages = useMemo(() => {
+    let messages = [...scheduledMessages, ...sentScheduledMessages, ...cancelledScheduledMessages]
+    
+    if (statusFilter !== 'all') {
+      messages = messages.filter((msg) => {
+        if (statusFilter === 'scheduled') {
+          return msg.status === 'SCHEDULED'
+        }
+        if (statusFilter === 'pending') {
+          return msg.status === 'PENDING' || msg.status === 'pending'
+        }
+        if (statusFilter === 'sent') {
+          return msg.status === 'SENT' || msg.status === 'sent'
+        }
+        if (statusFilter === 'cancelled') {
+          return msg.status === 'CANCELLED' || msg.status === 'cancelled'
+        }
+        return true
+      })
+    }
+    
+    if (!searchTerm) return messages
+    
+    const term = searchTerm.toLowerCase()
+    return messages.filter((msg) => {
+      const contact = contacts.find(c => c.phone === msg.phone?.replace('@c.us', ''))
+      return (
+        msg.content?.toLowerCase().includes(term) ||
+        contact?.name.toLowerCase().includes(term) ||
+        contact?.phone.includes(term)
+      )
+    })
+  }, [scheduledMessages, sentScheduledMessages, cancelledScheduledMessages, statusFilter, searchTerm, contacts])
+
+  const getContact = useCallback((phone: string | undefined) => {
+    if (!phone) return null
+    const cleanPhone = phone.replace('@c.us', '').replace('@g.us', '')
+    return contacts.find(c => c.phone === cleanPhone)
+  }, [contacts])
+
+  const handleSendNow = useCallback(async (msg: Message) => {
     try {
       await send({
         chatId: getChatId(msg.phone || ''),
@@ -95,17 +283,17 @@ export default function AgendamentosPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao enviar')
     }
-  }
+  }, [send, refetch])
 
-  const handleCancel = async (msg: Message) => {
+  const handleCancel = useCallback(async (msg: Message) => {
     try {
       await cancel(msg.id)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao cancelar')
     }
-  }
+  }, [cancel])
 
-  const handleCreate = async () => {
+  const handleCreate = useCallback(async () => {
     if (selectedContacts.length === 0 || !message || !scheduledAt) return
     
     setIsCreating(true)
@@ -130,7 +318,7 @@ export default function AgendamentosPage() {
     } finally {
       setIsCreating(false)
     }
-  }
+  }, [selectedContacts, message, scheduledAt, schedule, refetch])
 
   if (loading || contactsLoading) {
     return (
@@ -168,7 +356,7 @@ export default function AgendamentosPage() {
             </div>
             <div>
               <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-                {scheduledMessages.length}
+                {totalScheduled}
               </p>
               <p className="text-sm text-slate-500">Pendentes</p>
             </div>
@@ -182,7 +370,7 @@ export default function AgendamentosPage() {
             </div>
             <div>
               <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-                {sentMessages.length}
+                {totalSentScheduled}
               </p>
               <p className="text-sm text-slate-500">Enviadas</p>
             </div>
@@ -196,7 +384,7 @@ export default function AgendamentosPage() {
             </div>
             <div>
               <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-                {cancelledMessages.length}
+                {totalCancelledScheduled}
               </p>
               <p className="text-sm text-slate-500">Canceladas</p>
             </div>
@@ -204,26 +392,40 @@ export default function AgendamentosPage() {
         </Card>
       </div>
 
-      <Card className="border border-slate-200 dark:border-slate-700">
-        <CardContent className="p-4 flex flex-col sm:flex-row gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-            <Input
-              placeholder="Buscar agendamentos..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-          <Button 
-            className="bg-green-500 hover:bg-green-600"
-            onClick={() => setShowForm(!showForm)}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+          <Input
+            placeholder="Buscar agendamentos..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <Filter className="w-5 h-5 text-slate-400" />
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+            className="px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
           >
-            <Plus className="w-5 h-5 mr-2" />
-            Novo Agendamento
-          </Button>
-        </CardContent>
-      </Card>
+            <option value="all">Todos</option>
+            <option value="scheduled">Agendadas</option>
+            <option value="pending">Pendentes</option>
+            <option value="sent">Enviadas</option>
+            <option value="cancelled">Canceladas</option>
+          </select>
+        </div>
+        
+        <Button 
+          className="bg-green-500 hover:bg-green-600"
+          onClick={() => setShowForm(!showForm)}
+        >
+          <Plus className="w-5 h-5 mr-2" />
+          Novo Agendamento
+        </Button>
+      </div>
 
       {showForm && (
         <Card className="border border-slate-200 dark:border-slate-700">
@@ -235,64 +437,15 @@ export default function AgendamentosPage() {
               <label className="text-sm font-medium text-slate-700">
                 Destinatário
               </label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                <Input
-                  placeholder="Buscar contatos..."
-                  value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value)
-                    setIsSearchOpen(true)
-                  }}
-                  onFocus={() => setIsSearchOpen(true)}
-                  className="pl-10"
-                />
-                
-                {isSearchOpen && searchTerm && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg max-h-60 overflow-y-auto z-10">
-                    {filteredContacts.length === 0 ? (
-                      <div className="p-3 text-sm text-slate-500 text-center">
-                        Nenhum contato encontrado
-                      </div>
-                    ) : (
-                      filteredContacts.map((contact) => (
-                        <button
-                          key={contact.id}
-                          onClick={() => addContact(contact)}
-                          className="w-full p-3 text-left hover:bg-slate-100 dark:hover:bg-slate-700 flex flex-col"
-                        >
-                          <span className="font-medium text-slate-900 dark:text-slate-100">
-                            {contact.name}
-                          </span>
-                          <span className="text-sm text-slate-500">{contact.phone}</span>
-                        </button>
-                      ))
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {selectedContacts.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {selectedContacts.map((contact) => (
-                    <div
-                      key={contact.id}
-                      className="flex items-center gap-1 bg-slate-100 dark:bg-slate-700 px-3 py-1.5 rounded-full border border-slate-200 dark:border-slate-600"
-                    >
-                      <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
-                        {contact.name}
-                      </span>
-                      <button
-                        onClick={() => removeContact(contact.id)}
-                        className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 flex items-center justify-center"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
+              <ContactSearch
+                contacts={contacts}
+                searchTerm={contactSearchTerm}
+                onSearchChange={setContactSearchTerm}
+                onSelectContact={addContact}
+                selectedContacts={selectedContacts}
+                onRemoveContact={removeContact}
+              />
+              
               {selectedContacts.length > 0 && (
                 <div className="flex items-center gap-2">
                   <p className="text-sm text-slate-500">
@@ -365,63 +518,15 @@ export default function AgendamentosPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              {filteredMessages.map((msg) => {
-                const contact = getContact(msg.phone)
-                return (
-                  <div
-                    key={msg.id}
-                    className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-medium text-slate-900 dark:text-slate-100">
-                          {contact?.name || 'Desconhecido'}
-                        </span>
-                        <span className="text-sm text-slate-500">
-                          ({contact?.phone || msg.phone || '-'})
-                        </span>
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                          msg.status === 'PENDING' || msg.status === 'pending' || msg.status === 'SCHEDULED'
-                            ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-                            : msg.status === 'SENT' || msg.status === 'sent'
-                            ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                            : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                        }`}>
-                          {msg.status === 'PENDING' || msg.status === 'pending' || msg.status === 'SCHEDULED' 
-                            ? 'Pendente' 
-                            : msg.status === 'SENT' || msg.status === 'sent' 
-                            ? 'Enviada' 
-                            : 'Cancelada'}
-                        </span>
-                      </div>
-                      <p className="text-sm text-slate-600 dark:text-slate-400 truncate">
-                        {msg.content}
-                      </p>
-                      <div className="flex items-center gap-2 mt-2 text-sm text-slate-500">
-                        <Calendar className="w-4 h-4" />
-                        {formatDate(msg.scheduled_at || msg.next_send_at)}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 ml-4">
-                      {(msg.status === 'PENDING' || msg.status === 'pending' || msg.status === 'SCHEDULED') && (
-                        <>
-                          <Button variant="ghost" size="icon" onClick={() => handleSendNow(msg)}>
-                            <Send className="w-4 h-4" />
-                          </Button>
-                        </>
-                      )}
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="text-red-500"
-                        onClick={() => handleCancel(msg)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                )
-              })}
+              {filteredMessages.map((msg) => (
+                <MessageCard
+                  key={msg.id}
+                  message={msg}
+                  contact={getContact(msg.phone)}
+                  onSendNow={() => handleSendNow(msg)}
+                  onCancel={() => handleCancel(msg)}
+                />
+              ))}
             </div>
           )}
         </CardContent>
