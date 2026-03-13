@@ -23,7 +23,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { useTemplates } from '@/hooks'
-import type { Template, TemplateCategory } from '@/types'
+import type { Template } from '@/types'
 
 export default function ModelosPage() {
   const { templates, loading, create, update, remove } = useTemplates()
@@ -32,7 +32,6 @@ export default function ModelosPage() {
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null)
   const [newTemplateName, setNewTemplateName] = useState('')
   const [newTemplateContent, setNewTemplateContent] = useState('')
-  const [newTemplateCategory, setNewTemplateCategory] = useState<TemplateCategory>('general')
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
 
@@ -42,7 +41,7 @@ export default function ModelosPage() {
     return templates.filter(
       (template) =>
         template.name.toLowerCase().includes(term) ||
-        template.body.toLowerCase().includes(term)
+        template.content.toLowerCase().includes(term)
     )
   }, [templates, searchTerm])
 
@@ -55,34 +54,31 @@ export default function ModelosPage() {
   }
 
   const handleCopyContent = (template: Template) => {
-    navigator.clipboard.writeText(template.body)
+    navigator.clipboard.writeText(template.content)
     setCopiedId(template.id)
     setTimeout(() => setCopiedId(null), 2000)
   }
 
   const handleSaveTemplate = async () => {
-    if (!newTemplateName.trim() || !newTemplateContent.trim()) return
+    if (!newTemplateName?.trim() || !newTemplateContent?.trim()) return
 
     setIsSaving(true)
     try {
       if (editingTemplate) {
         await update(editingTemplate.id, {
           name: newTemplateName,
-          body: newTemplateContent,
-          category: newTemplateCategory,
+          content: newTemplateContent,
         })
       } else {
         await create({
           name: newTemplateName,
-          body: newTemplateContent,
-          category: newTemplateCategory,
+          content: newTemplateContent,
         })
       }
       setIsDialogOpen(false)
       setEditingTemplate(null)
       setNewTemplateName('')
       setNewTemplateContent('')
-      setNewTemplateCategory('general')
     } catch (err) {
       console.error(err)
     } finally {
@@ -93,8 +89,7 @@ export default function ModelosPage() {
   const handleEdit = (template: Template) => {
     setEditingTemplate(template)
     setNewTemplateName(template.name)
-    setNewTemplateContent(template.body)
-    setNewTemplateCategory(template.category)
+    setNewTemplateContent(template.content)
     setIsDialogOpen(true)
   }
 
@@ -112,7 +107,6 @@ export default function ModelosPage() {
       setEditingTemplate(null)
       setNewTemplateName('')
       setNewTemplateContent('')
-      setNewTemplateCategory('general')
     }
   }
 
@@ -178,21 +172,6 @@ export default function ModelosPage() {
                 </div>
                 <div>
                   <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                    Categoria
-                  </label>
-                  <select
-                    className="w-full mt-1 p-2 border rounded-md"
-                    value={newTemplateCategory}
-                    onChange={(e) => setNewTemplateCategory(e.target.value as TemplateCategory)}
-                  >
-                    <option value="general">Geral</option>
-                    <option value="marketing">Marketing</option>
-                    <option value="event">Evento</option>
-                    <option value="reminder">Lembrete</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
                     Mensagem
                   </label>
                   <Textarea
@@ -203,7 +182,7 @@ export default function ModelosPage() {
                     className="mt-1 resize-y"
                   />
                   <p className="text-xs text-slate-500 mt-1">
-                    {newTemplateContent.length}/1024 caracteres. Use {'{{nome}}'} para variáveis.
+                    {newTemplateContent?.length || 0}/1024 caracteres. Use {'{{nome}}'} para variáveis.
                   </p>
                 </div>
                 <div className="flex justify-end gap-2">
@@ -212,7 +191,7 @@ export default function ModelosPage() {
                   </Button>
                   <Button 
                     onClick={handleSaveTemplate}
-                    disabled={!newTemplateName.trim() || !newTemplateContent.trim() || isSaving}
+                    disabled={!newTemplateName?.trim() || !newTemplateContent?.trim() || isSaving}
                     className="bg-green-500 hover:bg-green-600"
                   >
                     {isSaving ? 'Salvando...' : editingTemplate ? 'Salvar' : 'Criar'}
@@ -268,7 +247,7 @@ export default function ModelosPage() {
                       </span>
                     </div>
                     <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-3">
-                      {template.body}
+                      {template.content}
                     </p>
                     <p className="text-xs text-slate-500 mt-2">
                       Criado em {formatDate(template.created_at)}

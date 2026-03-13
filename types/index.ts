@@ -76,7 +76,7 @@ export interface Template {
   id: string
   user_id: string
   name: string
-  body: string
+  content: string
   category: TemplateCategory
   is_active: boolean
   created_at: string
@@ -85,14 +85,12 @@ export interface Template {
 
 export interface CreateTemplateDto {
   name: string
-  body: string
-  category?: TemplateCategory
+  content: string
 }
 
 export interface UpdateTemplateDto {
   name?: string
-  body?: string
-  category?: TemplateCategory
+  content?: string
 }
 
 export type SessionStatus = 'stopped' | 'starting' | 'scan_qr_code' | 'working' | 'failed'

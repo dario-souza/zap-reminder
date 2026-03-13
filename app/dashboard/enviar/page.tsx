@@ -258,44 +258,6 @@ export default function EnviarPage() {
           </div>
         </CardContent>
       </Card>
-
-      <div className="grid grid-cols-3 gap-4">
-        <Card className="border border-slate-200 dark:border-slate-700">
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
-              <Send className="w-6 h-6 text-green-500" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">-</p>
-              <p className="text-sm text-slate-500">Enviadas hoje</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border border-slate-200 dark:border-slate-700">
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
-              <Calendar className="w-6 h-6 text-blue-500" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">-</p>
-              <p className="text-sm text-slate-500">Agendadas</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border border-slate-200 dark:border-slate-700">
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center">
-              <Minus className="w-6 h-6 text-purple-500" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">-</p>
-              <p className="text-sm text-slate-500">Falhas</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
     </div>
   )
 }
