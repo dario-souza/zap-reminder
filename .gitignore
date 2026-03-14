@@ -35,6 +35,10 @@ yarn-error.log*
 
 # vercel
 .vercel
+#ia
+AGENTS.md
+docs/
+.continue
 
 # typescript
 *.tsbuildinfo
