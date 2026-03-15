@@ -16,9 +16,10 @@ import {
   HelpCircle
 } from 'lucide-react'
 import { useConfirmations } from '@/hooks'
+import type { Confirmation } from '@/types'
 
 export default function ConfirmacoesPage() {
-  const { confirmations, loading, create, update, remove } = useConfirmations()
+  const { confirmations, isLoading: loading, create, update, remove } = useConfirmations()
   const [searchTerm, setSearchTerm] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [newConfirmation, setNewConfirmation] = useState({
@@ -32,15 +33,15 @@ export default function ConfirmacoesPage() {
   const filteredConfirmations = useMemo(() => {
     if (!searchTerm) return confirmations
     const term = searchTerm.toLowerCase()
-    return confirmations.filter(conf =>
+    return confirmations.filter((conf: Confirmation) =>
       conf.contact_name.toLowerCase().includes(term) ||
       conf.contact_phone.includes(term)
     )
   }, [confirmations, searchTerm])
 
-  const pendingCount = confirmations.filter(c => c.status === 'pending').length
-  const confirmedCount = confirmations.filter(c => c.status === 'confirmed').length
-  const deniedCount = confirmations.filter(c => c.status === 'denied').length
+  const pendingCount = confirmations.filter((c: Confirmation) => c.status === 'pending').length
+  const confirmedCount = confirmations.filter((c: Confirmation) => c.status === 'confirmed').length
+  const deniedCount = confirmations.filter((c: Confirmation) => c.status === 'denied').length
 
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return '-'
@@ -84,7 +85,7 @@ export default function ConfirmacoesPage() {
 
   const handleUpdateStatus = async (id: string, status: 'CONFIRMED' | 'DENIED') => {
     try {
-      await update(id, { status })
+      await update({ id, data: { status } })
     } catch (err) {
       console.error(err)
     }
@@ -253,7 +254,7 @@ export default function ConfirmacoesPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              {filteredConfirmations.map((conf) => (
+              {filteredConfirmations.map((conf: Confirmation) => (
                 <div
                   key={conf.id}
                   className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700"

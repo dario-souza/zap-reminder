@@ -1,63 +1,53 @@
-import { useState, useEffect, useCallback } from 'react'
-import { templatesApi } from '@/lib/api'
-import type { Template, CreateTemplateDto, UpdateTemplateDto } from '@/types'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { api } from '../lib/api'
+import type { Template } from '../types'
 
-interface UseTemplatesReturn {
-  templates: Template[]
-  loading: boolean
-  error: string | null
-  refetch: () => Promise<void>
-  create: (data: CreateTemplateDto) => Promise<Template>
-  update: (id: string, data: UpdateTemplateDto) => Promise<Template>
-  remove: (id: string) => Promise<void>
+export const templateKeys = {
+  all: ['templates'] as const,
+  list: () => [...templateKeys.all, 'list'] as const,
 }
 
-export function useTemplates(): UseTemplatesReturn {
-  const [templates, setTemplates] = useState<Template[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+export function useTemplates() {
+  const queryClient = useQueryClient()
+  
+  const query = useQuery({
+    queryKey: templateKeys.list(),
+    queryFn: api.templates.list,
+  })
 
-  const fetchTemplates = useCallback(async () => {
-    try {
-      setLoading(true)
-      setError(null)
-      const data = await templatesApi.getAll()
-      setTemplates(data || [])
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao carregar templates')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const createMutation = useMutation({
+    mutationFn: api.templates.create,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: templateKeys.list() })
+    },
+  })
 
-  useEffect(() => {
-    fetchTemplates()
-  }, [fetchTemplates])
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) =>
+      api.templates.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: templateKeys.list() })
+    },
+  })
 
-  const create = async (data: CreateTemplateDto): Promise<Template> => {
-    const newTemplate = await templatesApi.create(data)
-    await fetchTemplates()
-    return newTemplate
-  }
-
-  const update = async (id: string, data: UpdateTemplateDto): Promise<Template> => {
-    const updated = await templatesApi.update(id, data)
-    await fetchTemplates()
-    return updated
-  }
-
-  const remove = async (id: string): Promise<void> => {
-    await templatesApi.delete(id)
-    await fetchTemplates()
-  }
+  const deleteMutation = useMutation({
+    mutationFn: api.templates.remove,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: templateKeys.list() })
+    },
+  })
 
   return {
-    templates,
-    loading,
-    error,
-    refetch: fetchTemplates,
-    create,
-    update,
-    remove,
+    templates: (query.data ?? []) as Template[],
+    create: createMutation.mutate,
+    createAsync: createMutation.mutateAsync,
+    update: updateMutation.mutate,
+    updateAsync: updateMutation.mutateAsync,
+    remove: deleteMutation.mutate,
+    removeAsync: deleteMutation.mutateAsync,
+    isCreating: createMutation.isPending,
+    isUpdating: updateMutation.isPending,
+    isRemoving: deleteMutation.isPending,
+    ...query,
   }
 }

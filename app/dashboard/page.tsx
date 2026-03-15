@@ -16,7 +16,7 @@ import {
 import Link from 'next/link'
 
 export default function DashboardPage() {
-  const { contacts, loading: contactsLoading } = useContacts()
+  const { contacts, isLoading: contactsLoading } = useContacts()
   const { messages } = useMessages()
   const { totalScheduled } = useScheduledMessages()
   const { confirmations } = useConfirmations()

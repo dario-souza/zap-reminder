@@ -208,7 +208,7 @@ export default function AgendamentosPage() {
     cancel 
   } = useScheduledMessages()
   
-  const { contacts, loading: contactsLoading } = useContacts()
+  const { contacts, isLoading: contactsLoading } = useContacts()
   const { schedule, send } = useMessages()
   
   const [searchTerm, setSearchTerm] = useState('')
@@ -257,7 +257,7 @@ export default function AgendamentosPage() {
     
     const term = searchTerm.toLowerCase()
     return messages.filter((msg) => {
-      const contact = contacts.find(c => c.phone === msg.phone?.replace('@c.us', ''))
+      const contact = contacts.find((c: Contact) => c.phone === msg.phone?.replace('@c.us', ''))
       return (
         msg.content?.toLowerCase().includes(term) ||
         contact?.name.toLowerCase().includes(term) ||
@@ -269,7 +269,7 @@ export default function AgendamentosPage() {
   const getContact = useCallback((phone: string | undefined) => {
     if (!phone) return null
     const cleanPhone = phone.replace('@c.us', '').replace('@g.us', '')
-    return contacts.find(c => c.phone === cleanPhone)
+    return contacts.find((c: Contact) => c.phone === cleanPhone)
   }, [contacts])
 
   const handleSendNow = useCallback(async (msg: Message) => {
@@ -278,6 +278,7 @@ export default function AgendamentosPage() {
         chatId: getChatId(msg.phone || ''),
         body: msg.content || '',
         contactId: msg.contact_id,
+        type: 'instant',
       })
       await refetch()
     } catch (err) {
@@ -305,7 +306,8 @@ export default function AgendamentosPage() {
           chatId: getChatId(contact.phone),
           body: message,
           contactId: contact.id,
-          scheduledAt: new Date(scheduledAt).toISOString()
+          scheduledAt: new Date(scheduledAt).toISOString(),
+          type: 'scheduled',
         })
       }
       setMessage('')

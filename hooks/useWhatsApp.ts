@@ -1,114 +1,66 @@
-import { useState, useEffect, useCallback } from 'react'
-import { messagesApi } from '@/lib/api'
-import type { WhatsAppStatus, QRCodeResponse } from '@/types/whatsapp'
+import { useSessionStatus, useSessionQRCode, useStartSession, useStopSession, useLogoutSession } from './useSession'
 
 interface UseWhatsAppReturn {
-  status: WhatsAppStatus | null
+  status: { connected: boolean; status: string; phone?: string; pushName?: string } | null
   loading: boolean
-  error: string | null
+  error: Error | null
   isConnected: boolean
   isConnecting: boolean
   isWaitingQR: boolean
   refetch: () => Promise<void>
-  connect: () => Promise<void>
-  disconnect: () => Promise<void>
-  getQRCode: () => Promise<QRCodeResponse>
+  connect: () => void
+  disconnect: () => void
+  getQRCode: () => Promise<{ qr?: string; connected?: boolean; status?: string; error?: string }>
 }
 
 export function useWhatsApp(): UseWhatsAppReturn {
-  const [status, setStatus] = useState<WhatsAppStatus | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [isConnecting, setIsConnecting] = useState(false)
-  const [isWaitingQR, setIsWaitingQR] = useState(false)
+  const { data: statusData, isLoading, error, refetch: refetchStatus } = useSessionStatus()
+  const { data: qrData, refetch: refetchQR, isFetching: isFetchingQR } = useSessionQRCode()
+  const startMutation = useStartSession()
+  const stopMutation = useStopSession()
 
-  const fetchStatus = useCallback(async () => {
-    try {
-      const data = await messagesApi.checkWhatsAppStatus()
-      
-      if (!data) {
-        setStatus({ connected: false, status: 'stopped' })
-        return
-      }
+  const isConnected = statusData?.status === 'WORKING'
+  const isWaitingQR = statusData?.status === 'SCAN_QR_CODE'
+  const isConnecting = startMutation.isPending || stopMutation.isPending
 
-      const connectedBool = data.connected
-      const statusStr = data.status
-      
-      const isConnected = connectedBool === true || 
-                          connectedBool === 'true' || 
-                          connectedBool === 'WORKING' ||
-                          statusStr === 'WORKING' ||
-                          statusStr === 'working'
-
-      const statusValue: WhatsAppStatus = {
-        connected: isConnected,
-        status: (isConnected ? 'working' : ((statusStr as string)?.toLowerCase() || 'stopped')) as 'failed' | 'stopped' | 'starting' | 'scan_qr_code' | 'working',
-        phone: data.phone,
-        pushName: data.pushName
-      }
-
-      setStatus(statusValue)
-      
-      if (isConnected) {
-        setIsConnecting(false)
-        setIsWaitingQR(false)
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao verificar status')
-      setStatus({ connected: false, status: 'stopped' })
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    fetchStatus()
-  }, [fetchStatus])
-
-  const connect = async () => {
-    setIsConnecting(true)
-    setError(null)
-    try {
-      await messagesApi.startWhatsAppSession()
-      await fetchStatus()
-      setIsWaitingQR(true)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao iniciar sessão')
-      setIsConnecting(false)
-    }
+  const handleRefetch = async (): Promise<void> => {
+    await refetchStatus()
+    await refetchQR()
   }
 
-  const disconnect = async () => {
-    setLoading(true)
-    try {
-      await messagesApi.disconnectWhatsApp()
-      await fetchStatus()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao desconectar')
-    } finally {
-      setLoading(false)
+  const handleGetQRCode = async (): Promise<{ qr?: string; connected?: boolean; status?: string; error?: string }> => {
+    if (isConnected) {
+      return { connected: true, status: 'WORKING' }
     }
-  }
 
-  const getQRCode = async (): Promise<QRCodeResponse> => {
-    try {
-      const data = await messagesApi.getQRCode()
-      return data
-    } catch (err) {
-      return { error: err instanceof Error ? err.message : 'Erro ao obter QR Code' }
+    await refetchQR()
+    
+    if (qrData) {
+      return {
+        qr: qrData.qr || (qrData as any).value,
+        status: qrData.status,
+        connected: qrData.connected || false,
+      }
     }
+
+    return { error: 'Erro ao obter QR code' }
   }
 
   return {
-    status,
-    loading,
-    error,
-    isConnected: status?.connected || false,
+    status: statusData ? {
+      connected: isConnected,
+      status: statusData.status || 'stopped',
+      phone: statusData.phone,
+      pushName: statusData.pushName,
+    } : null,
+    loading: isLoading,
+    error: error || null,
+    isConnected,
     isConnecting,
     isWaitingQR,
-    refetch: fetchStatus,
-    connect,
-    disconnect,
-    getQRCode,
+    refetch: handleRefetch,
+    connect: () => startMutation.mutate(),
+    disconnect: () => stopMutation.mutate(),
+    getQRCode: handleGetQRCode,
   }
 }

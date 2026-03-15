@@ -1,66 +1,53 @@
-import { useState, useEffect, useCallback } from 'react'
-import { confirmationsApi } from '@/lib/api'
-import type { Confirmation, CreateConfirmationDto } from '@/types'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { api } from '../lib/api'
+import type { Confirmation } from '../types'
 
-interface UseConfirmationsReturn {
-  confirmations: Confirmation[]
-  loading: boolean
-  error: string | null
-  refetch: () => Promise<void>
-  create: (data: CreateConfirmationDto) => Promise<Confirmation>
-  update: (id: string, data: { status: 'CONFIRMED' | 'DENIED'; response?: string }) => Promise<Confirmation>
-  remove: (id: string) => Promise<void>
+export const confirmationKeys = {
+  all: ['confirmations'] as const,
+  list: () => [...confirmationKeys.all, 'list'] as const,
 }
 
-export function useConfirmations(): UseConfirmationsReturn {
-  const [confirmations, setConfirmations] = useState<Confirmation[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+export function useConfirmations() {
+  const queryClient = useQueryClient()
+  
+  const query = useQuery({
+    queryKey: confirmationKeys.list(),
+    queryFn: api.confirmations.list,
+  })
 
-  const fetchConfirmations = useCallback(async () => {
-    try {
-      setLoading(true)
-      setError(null)
-      const data = await confirmationsApi.getAll()
-      setConfirmations(data || [])
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao carregar confirmações')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const createMutation = useMutation({
+    mutationFn: api.confirmations.create,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: confirmationKeys.list() })
+    },
+  })
 
-  useEffect(() => {
-    fetchConfirmations()
-  }, [fetchConfirmations])
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) =>
+      api.confirmations.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: confirmationKeys.list() })
+    },
+  })
 
-  const create = async (data: CreateConfirmationDto): Promise<Confirmation> => {
-    const newConfirmation = await confirmationsApi.create(data)
-    await fetchConfirmations()
-    return newConfirmation
-  }
-
-  const update = async (
-    id: string,
-    data: { status: 'CONFIRMED' | 'DENIED'; response?: string }
-  ): Promise<Confirmation> => {
-    const updated = await confirmationsApi.update(id, data)
-    await fetchConfirmations()
-    return updated
-  }
-
-  const remove = async (id: string): Promise<void> => {
-    await confirmationsApi.delete(id)
-    await fetchConfirmations()
-  }
+  const deleteMutation = useMutation({
+    mutationFn: api.confirmations.remove,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: confirmationKeys.list() })
+    },
+  })
 
   return {
-    confirmations,
-    loading,
-    error,
-    refetch: fetchConfirmations,
-    create,
-    update,
-    remove,
+    confirmations: (query.data ?? []) as Confirmation[],
+    create: createMutation.mutate,
+    createAsync: createMutation.mutateAsync,
+    update: updateMutation.mutate,
+    updateAsync: updateMutation.mutateAsync,
+    remove: deleteMutation.mutate,
+    removeAsync: deleteMutation.mutateAsync,
+    isCreating: createMutation.isPending,
+    isUpdating: updateMutation.isPending,
+    isRemoving: deleteMutation.isPending,
+    ...query,
   }
 }

@@ -26,7 +26,7 @@ import { useTemplates } from '@/hooks'
 import type { Template } from '@/types'
 
 export default function ModelosPage() {
-  const { templates, loading, create, update, remove } = useTemplates()
+  const { templates, isLoading: loading, create, update, remove } = useTemplates()
   const [searchTerm, setSearchTerm] = useState('')
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null)
@@ -39,7 +39,7 @@ export default function ModelosPage() {
     if (!searchTerm) return templates
     const term = searchTerm.toLowerCase()
     return templates.filter(
-      (template) =>
+      (template: Template) =>
         template.name.toLowerCase().includes(term) ||
         template.content.toLowerCase().includes(term)
     )
@@ -65,10 +65,10 @@ export default function ModelosPage() {
     setIsSaving(true)
     try {
       if (editingTemplate) {
-        await update(editingTemplate.id, {
+        await update({ id: editingTemplate.id, data: {
           name: newTemplateName,
           content: newTemplateContent,
-        })
+        }})
       } else {
         await create({
           name: newTemplateName,
@@ -230,7 +230,7 @@ export default function ModelosPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              {filteredTemplates.map((template) => (
+              {filteredTemplates.map((template: Template) => (
                 <div
                   key={template.id}
                   className="flex items-start justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700"

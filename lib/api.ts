@@ -1,274 +1,265 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+import { supabase } from './supabase'
 
-import { supabase } from './supabase';
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
-export async function apiFetch(endpoint: string, options: RequestInit = {}) {
-  const url = `${API_URL}${endpoint}`;
-  
-  const config: RequestInit = {
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-    ...options,
-  };
-
-  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-  if (token) {
-    config.headers = {
-      ...config.headers,
-      Authorization: `Bearer ${token}`,
-    };
+async function getAuthHeaders(): Promise<HeadersInit> {
+  const { data } = await supabase.auth.getSession()
+  const token = data.session?.access_token
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
   }
-
-  const response = await fetch(url, config);
-  let data: any;
-  const contentType = response.headers.get('content-type') || '';
-  
-  if (contentType.includes('application/json')) {
-    data = await response.json();
-  } else {
-    const text = await response.text();
-    try {
-      data = JSON.parse(text);
-    } catch {
-      if (!response.ok) {
-        throw new Error(text || `Erro ${response.status}: ${response.statusText}`);
-      }
-      data = { message: text };
-    }
-  }
-
-  if (!response.ok) {
-    const errMsg = data?.error ?? data?.message ?? 'Erro na requisição';
-    throw new Error(errMsg);
-  }
-
-  return data;
 }
 
-export const authApi = {
-  login: (email: string, password: string) =>
-    apiFetch('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ email, password }),
-    }),
+export const api = {
+  messages: {
+    list: async () => {
+      const res = await fetch(`${BASE_URL}/messages`, {
+        headers: await getAuthHeaders(),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      return res.json()
+    },
 
-  register: (name: string, email: string, password: string) =>
-    apiFetch('/auth/register', {
-      method: 'POST',
-      body: JSON.stringify({ name, email, password }),
-    }),
+    create: async (data: any) => {
+      const res = await fetch(`${BASE_URL}/messages`, {
+        method: 'POST',
+        headers: await getAuthHeaders(),
+        body: JSON.stringify(data),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      return res.json()
+    },
 
-  logout: async () => {
-    await supabase.auth.signOut();
+    cancel: async (id: string) => {
+      const res = await fetch(`${BASE_URL}/messages/${id}/cancel`, {
+        method: 'POST',
+        headers: await getAuthHeaders(),
+      })
+      if (!res.ok) throw new Error(await res.text())
+    },
+
+    sendNow: async (id: string) => {
+      const res = await fetch(`${BASE_URL}/messages/${id}/send`, {
+        method: 'POST',
+        headers: await getAuthHeaders(),
+      })
+      if (!res.ok) throw new Error(await res.text())
+    },
+
+    createBulk: async (data: any) => {
+      const res = await fetch(`${BASE_URL}/messages/bulk`, {
+        method: 'POST',
+        headers: await getAuthHeaders(),
+        body: JSON.stringify(data),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      return res.json()
+    },
+
+    sendTest: async (phone: string, message: string) => {
+      const res = await fetch(`${BASE_URL}/messages/test`, {
+        method: 'POST',
+        headers: await getAuthHeaders(),
+        body: JSON.stringify({ phone, message }),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      return res.json()
+    },
   },
 
-  me: () =>
-    apiFetch('/auth/me'),
-};
+  contacts: {
+    list: async () => {
+      const res = await fetch(`${BASE_URL}/contacts`, {
+        headers: await getAuthHeaders(),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      return res.json()
+    },
 
-export const contactsApi = {
-  getAll: () =>
-    apiFetch('/contacts'),
+    create: async (data: any) => {
+      const res = await fetch(`${BASE_URL}/contacts`, {
+        method: 'POST',
+        headers: await getAuthHeaders(),
+        body: JSON.stringify(data),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      return res.json()
+    },
 
-  create: (data: { name: string; phone: string; email?: string }) =>
-    apiFetch('/contacts', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    }),
+    update: async (id: string, data: any) => {
+      const res = await fetch(`${BASE_URL}/contacts/${id}`, {
+        method: 'PUT',
+        headers: await getAuthHeaders(),
+        body: JSON.stringify(data),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      return res.json()
+    },
 
-  update: (id: string, data: { name?: string; phone?: string; email?: string }) =>
-    apiFetch(`/contacts/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    }),
+    remove: async (id: string) => {
+      const res = await fetch(`${BASE_URL}/contacts/${id}`, {
+        method: 'DELETE',
+        headers: await getAuthHeaders(),
+      })
+      if (!res.ok) throw new Error(await res.text())
+    },
 
-  delete: (id: string) =>
-    apiFetch(`/contacts/${id}`, {
-      method: 'DELETE',
-    }),
+    importCSV: async (csvContent: string) => {
+      const res = await fetch(`${BASE_URL}/contacts/import`, {
+        method: 'POST',
+        headers: await getAuthHeaders(),
+        body: JSON.stringify({ csvContent }),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      return res.json()
+    },
 
-  deleteAll: () =>
-    apiFetch('/contacts', {
-      method: 'DELETE',
-    }),
-
-  exportCSV: async () => {
-    const token = localStorage.getItem('token');
-    const response = await fetch(`${API_URL}/contacts/export`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-    
-    if (!response.ok) {
-      throw new Error('Erro ao exportar contatos');
-    }
-    
-    const blob = await response.blob();
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'contatos.csv';
-    document.body.appendChild(a);
-    a.click();
-    window.URL.revokeObjectURL(url);
-    document.body.removeChild(a);
+    exportCSV: async () => {
+      const { data } = await supabase.auth.getSession()
+      const token = data.session?.access_token
+      const res = await fetch(`${BASE_URL}/contacts/export`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+      if (!res.ok) throw new Error('Erro ao exportar contatos')
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'contatos.csv'
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    },
   },
 
-  importCSV: async (contacts: { name: string; phone: string; email?: string }[]) => {
-    const csvContent = 'name,phone,email\n' + contacts.map(c => 
-      `"${c.name}","${c.phone}","${c.email || ''}"`
-    ).join('\n');
-    return apiFetch('/contacts/import', {
-      method: 'POST',
-      body: JSON.stringify({ csvContent }),
-    });
+  templates: {
+    list: async () => {
+      const res = await fetch(`${BASE_URL}/templates`, {
+        headers: await getAuthHeaders(),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      return res.json()
+    },
+
+    create: async (data: any) => {
+      const res = await fetch(`${BASE_URL}/templates`, {
+        method: 'POST',
+        headers: await getAuthHeaders(),
+        body: JSON.stringify(data),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      return res.json()
+    },
+
+    update: async (id: string, data: any) => {
+      const res = await fetch(`${BASE_URL}/templates/${id}`, {
+        method: 'PUT',
+        headers: await getAuthHeaders(),
+        body: JSON.stringify(data),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      return res.json()
+    },
+
+    remove: async (id: string) => {
+      const res = await fetch(`${BASE_URL}/templates/${id}`, {
+        method: 'DELETE',
+        headers: await getAuthHeaders(),
+      })
+      if (!res.ok) throw new Error(await res.text())
+    },
   },
-};
 
-export const messagesApi = {
-  getAll: () =>
-    apiFetch('/messages'),
+  session: {
+    status: async () => {
+      const res = await fetch(`${BASE_URL}/sessions/status`, {
+        headers: await getAuthHeaders(),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      return res.json()
+    },
 
-  create: (data: { chatId: string; body: string; contactId?: string; templateId?: string; scheduledAt?: string }) =>
-    apiFetch('/messages', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    }),
+    start: async () => {
+      const res = await fetch(`${BASE_URL}/sessions/start`, {
+        method: 'POST',
+        headers: await getAuthHeaders(),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      return res.json()
+    },
 
-  send: (data: { chatId: string; body: string; contactId?: string; templateId?: string }) =>
-    apiFetch('/messages/send', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    }),
+    qrCode: async () => {
+      const res = await fetch(`${BASE_URL}/sessions/qr`, {
+        headers: await getAuthHeaders(),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      return res.json()
+    },
 
-  schedule: (data: { chatId: string; body: string; scheduledAt: string; contactId?: string; templateId?: string }) =>
-    apiFetch('/messages/schedule', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    }),
+    stop: async () => {
+      const res = await fetch(`${BASE_URL}/sessions/stop`, {
+        method: 'POST',
+        headers: await getAuthHeaders(),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      return res.json()
+    },
 
-  createBulk: (data: {
-    content: string;
-    recipients: { chatId: string; body: string; contactId?: string }[];
-    name?: string;
-  }) =>
-    apiFetch('/messages/batch', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    }),
+    logout: async () => {
+      const res = await fetch(`${BASE_URL}/sessions/logout`, {
+        method: 'POST',
+        headers: await getAuthHeaders(),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      return res.json()
+    },
+  },
 
-  sendNow: (id: string) =>
-    apiFetch(`/messages/${id}/send`, {
-      method: 'POST',
-    }),
+  confirmations: {
+    list: async () => {
+      const res = await fetch(`${BASE_URL}/confirmations`, {
+        headers: await getAuthHeaders(),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      return res.json()
+    },
 
-  cancel: (id: string) =>
-    apiFetch(`/messages/${id}/cancel`, {
-      method: 'POST',
-    }),
+    create: async (data: any) => {
+      const res = await fetch(`${BASE_URL}/confirmations`, {
+        method: 'POST',
+        headers: await getAuthHeaders(),
+        body: JSON.stringify(data),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      return res.json()
+    },
 
-  deleteAll: () =>
-    apiFetch('/messages', {
-      method: 'DELETE',
-    }),
+    update: async (id: string, data: any) => {
+      const res = await fetch(`${BASE_URL}/confirmations/${id}`, {
+        method: 'PUT',
+        headers: await getAuthHeaders(),
+        body: JSON.stringify(data),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      return res.json()
+    },
 
-  checkWhatsAppStatus: () =>
-    apiFetch('/session/status'),
+    remove: async (id: string) => {
+      const res = await fetch(`${BASE_URL}/confirmations/${id}`, {
+        method: 'DELETE',
+        headers: await getAuthHeaders(),
+      })
+      if (!res.ok) throw new Error(await res.text())
+    },
+  },
+}
 
-  sendTestMessage: (phone: string, message: string) =>
-    apiFetch('/messages/test', {
-      method: 'POST',
-      body: JSON.stringify({ 
-        phone, 
-        message 
-      }),
-    }),
-
-  getQRCode: () =>
-    apiFetch('/session/qr'),
-
-  disconnectWhatsApp: () =>
-    apiFetch('/session/stop', {
-      method: 'POST',
-    }),
-
-  startWhatsAppSession: () =>
-    apiFetch('/session/start', {
-      method: 'POST',
-    }),
-};
-
-export const templatesApi = {
-  getAll: () =>
-    apiFetch('/templates'),
-
-  create: (data: { name: string; content: string }) =>
-    apiFetch('/templates', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    }),
-
-  update: (id: string, data: { name?: string; content?: string }) =>
-    apiFetch(`/templates/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    }),
-
-  delete: (id: string) =>
-    apiFetch(`/templates/${id}`, {
-      method: 'DELETE',
-    }),
-
-  deleteAll: () =>
-    apiFetch('/templates', {
-      method: 'DELETE',
-    }),
-};
-
-export const sessionApi = {
-  get: () =>
-    apiFetch('/session'),
-
-  start: () =>
-    apiFetch('/session/start', {
-      method: 'POST',
-    }),
-
-  stop: () =>
-    apiFetch('/session/stop', {
-      method: 'POST',
-    }),
-
-  logout: () =>
-    apiFetch('/session/logout', {
-      method: 'POST',
-    }),
-
-  getQr: () =>
-    apiFetch('/session/qr'),
-};
-
-export const confirmationsApi = {
-  getAll: () =>
-    apiFetch('/confirmations'),
-
-  create: (data: { contactName: string; contactPhone: string; eventDate: string; messageContent?: string }) =>
-    apiFetch('/confirmations', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    }),
-
-  update: (id: string, data: { status: 'CONFIRMED' | 'DENIED'; response?: string }) =>
-    apiFetch(`/confirmations/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    }),
-
-  delete: (id: string) =>
-    apiFetch(`/confirmations/${id}`, {
-      method: 'DELETE',
-    }),
-};
+export const contactsApi = api.contacts
+export const messagesApi = api.messages
+export const templatesApi = api.templates
+export const sessionApi = api.session
+export const confirmationsApi = api.confirmations

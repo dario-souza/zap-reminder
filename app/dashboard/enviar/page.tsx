@@ -13,7 +13,7 @@ import { getChatId } from '@/types'
 
 export default function EnviarPage() {
   const router = useRouter()
-  const { contacts, loading: contactsLoading } = useContacts()
+  const { contacts, isLoading: contactsLoading } = useContacts()
   const { send, sendNow } = useMessages()
   
   const [searchTerm, setSearchTerm] = useState('')
@@ -28,7 +28,7 @@ export default function EnviarPage() {
     if (!searchTerm) return contacts
     const term = searchTerm.toLowerCase()
     return contacts.filter(
-      (contact) =>
+      (contact: Contact) =>
         contact.name.toLowerCase().includes(term) ||
         contact.phone.includes(term)
     )
@@ -66,6 +66,7 @@ export default function EnviarPage() {
           chatId: getChatId(contact.phone),
           body: message,
           contactId: contact.id,
+          type: 'instant',
         })
       }
       setSuccess(`${selectedContacts.length} mensagem(s) enviada(s) com sucesso!`)
@@ -147,7 +148,7 @@ export default function EnviarPage() {
                       Nenhum contato encontrado
                     </div>
                   ) : (
-                    filteredContacts.map((contact) => (
+                    filteredContacts.map((contact: Contact) => (
                       <button
                         key={contact.id}
                         onClick={() => addContact(contact)}

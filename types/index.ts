@@ -25,7 +25,7 @@ export interface UpdateContactDto {
 }
 
 export type MessageStatus = 'pending' | 'sent' | 'delivered' | 'read' | 'failed' | 'cancelled' | 'SCHEDULED' | 'PENDING' | 'SENT' | 'DELIVERED' | 'READ' | 'FAILED' | 'CANCELLED'
-export type MessageType = 'immediate' | 'scheduled' | 'batch' | 'rsvp'
+export type MessageType = 'instant' | 'scheduled' | 'recurring'
 
 export interface Message {
   id: string

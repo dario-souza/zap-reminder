@@ -31,7 +31,7 @@ import { contactsApi } from '@/lib/api'
 import type { Contact } from '@/types'
 
 export default function ContatosPage() {
-  const { contacts, loading, create, update, remove, refetch } = useContacts()
+  const { contacts, isLoading: loading, create, update, remove, refetch } = useContacts()
   const [searchTerm, setSearchTerm] = useState('')
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingContact, setEditingContact] = useState<Contact | null>(null)
@@ -47,7 +47,7 @@ export default function ContatosPage() {
     if (!searchTerm) return contacts
     const term = searchTerm.toLowerCase()
     return contacts.filter(
-      (contact) =>
+      (contact: Contact) =>
         contact.name.toLowerCase().includes(term) ||
         contact.phone.includes(term) ||
         contact.email?.toLowerCase().includes(term)
@@ -89,7 +89,7 @@ export default function ContatosPage() {
       }
 
       if (editingContact) {
-        await update(editingContact.id, contactData)
+        await update({ id: editingContact.id, data: contactData })
       } else {
         await create(contactData)
       }
@@ -197,7 +197,11 @@ export default function ContatosPage() {
         return
       }
 
-      const result = await contactsApi.importCSV(contactsToImport)
+      const csvContent = 'name,phone,email\n' + contactsToImport.map((c: any) => 
+        `"${c.name}","${c.phone}","${c.email || ''}"`
+      ).join('\n')
+      
+      const result = await contactsApi.importCSV(csvContent)
       setImportResult({ success: true, message: `${result.success} contatos importados com sucesso!` })
       await refetch()
     } catch (err) {
@@ -383,7 +387,7 @@ export default function ContatosPage() {
             </div>
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {filteredContacts.map((contact) => (
+              {filteredContacts.map((contact: Contact) => (
                 <div
                   key={contact.id}
                   className="flex flex-col p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700"

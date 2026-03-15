@@ -51,7 +51,7 @@ export default function ConexaoPage() {
     setMessage(null)
     try {
       const { messagesApi } = await import('@/lib/api')
-      await messagesApi.sendTestMessage(testPhone, testMessage || 'Teste ZapReminder!')
+      await messagesApi.sendTest(testPhone, testMessage || 'Teste ZapReminder!')
       setMessage({ type: 'success', text: 'Mensagem enviada!' })
       setTestPhone('')
       setTestMessage('')

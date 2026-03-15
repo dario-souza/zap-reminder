@@ -1,126 +1,155 @@
-import { useState, useEffect, useCallback } from 'react'
-import { messagesApi } from '@/lib/api'
-import type { Message, CreateMessageDto } from '@/types'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { api } from '../lib/api'
+import type { Message } from '../types'
 
-interface UseMessagesReturn {
-  messages: Message[]
-  loading: boolean
-  error: string | null
-  refetch: () => Promise<void>
-  send: (data: CreateMessageDto) => Promise<Message>
-  sendNow: (id: string) => Promise<void>
-  schedule: (data: CreateMessageDto & { scheduledAt: string }) => Promise<Message>
-  cancel: (id: string) => Promise<void>
+export const messageKeys = {
+  all: ['messages'] as const,
+  list: () => [...messageKeys.all, 'list'] as const,
 }
 
-export function useMessages(): UseMessagesReturn {
-  const [messages, setMessages] = useState<Message[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+export function useMessages() {
+  const queryClient = useQueryClient()
+  const query = useQuery({
+    queryKey: messageKeys.list(),
+    queryFn: api.messages.list,
+  })
 
-  const fetchMessages = useCallback(async () => {
-    try {
-      setLoading(true)
-      setError(null)
-      const data = await messagesApi.getAll()
-      setMessages(data || [])
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao carregar mensagens')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const createMutation = useMutation({
+    mutationFn: api.messages.create,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: messageKeys.list() })
+    },
+  })
 
-  useEffect(() => {
-    fetchMessages()
-  }, [fetchMessages])
+  const cancelMutation = useMutation({
+    mutationFn: api.messages.cancel,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: messageKeys.list() })
+    },
+  })
 
-  const send = async (data: CreateMessageDto): Promise<Message> => {
-    const message = await messagesApi.create(data)
-    await fetchMessages()
-    return message
-  }
-
-  const sendNow = async (id: string): Promise<void> => {
-    await messagesApi.sendNow(id)
-    await fetchMessages()
-  }
-
-  const schedule = async (data: CreateMessageDto & { scheduledAt: string }): Promise<Message> => {
-    const { scheduledAt, ...rest } = data
-    const message = await messagesApi.create({
-      ...rest,
-      scheduledAt,
-    })
-    await fetchMessages()
-    return message
-  }
-
-  const cancel = async (id: string): Promise<void> => {
-    await messagesApi.cancel(id)
-    await fetchMessages()
-  }
+  const sendNowMutation = useMutation({
+    mutationFn: api.messages.sendNow,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: messageKeys.list() })
+    },
+  })
 
   return {
-    messages,
-    loading,
-    error,
-    refetch: fetchMessages,
-    send,
-    sendNow,
-    schedule,
-    cancel,
+    messages: (query.data ?? []) as Message[],
+    schedule: createMutation.mutate,
+    scheduleAsync: createMutation.mutateAsync,
+    send: createMutation.mutate,
+    sendAsync: createMutation.mutateAsync,
+    cancel: cancelMutation.mutate,
+    cancelAsync: cancelMutation.mutateAsync,
+    sendNow: sendNowMutation.mutate,
+    sendNowAsync: sendNowMutation.mutateAsync,
+    isScheduling: createMutation.isPending,
+    isSending: createMutation.isPending,
+    isCancelling: cancelMutation.isPending,
+    isSendingNow: sendNowMutation.isPending,
+    ...query,
   }
+}
+
+export function useCreateMessage() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: api.messages.create,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: messageKeys.list() })
+    },
+  })
+}
+
+export function useCancelMessage() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: api.messages.cancel,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: messageKeys.list() })
+    },
+  })
+}
+
+export function useSendNowMessage() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: api.messages.sendNow,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: messageKeys.list() })
+    },
+  })
+}
+
+export function useSendTestMessage() {
+  return useMutation({
+    mutationFn: ({ phone, message }: { phone: string; message: string }) =>
+      api.messages.sendTest(phone, message),
+  })
 }
 
 export function useScheduledMessages() {
-  const { messages, loading, error, refetch, sendNow, cancel } = useMessages()
+  const queryClient = useQueryClient()
+  const { data: messages = [], isLoading, isError, error, refetch } = useMessages()
   
-  // Mensagens agendadas (com scheduled_at mas ainda não enviadas e não recorrentes)
-  const scheduledMessages = messages.filter(
-    (m) => 
+  const scheduledMessages: Message[] = messages.filter(
+    (m: Message) => 
       (m.status === 'SCHEDULED' || m.status === 'PENDING' || m.status === 'pending') && 
       m.scheduled_at && 
       (!m.recurrence_type || m.recurrence_type === 'NONE')
   )
   
-  // Mensagens recorrentes (com recurrence_type diferente de NONE)
-  const recurringMessages = messages.filter(
-    (m) => m.recurrence_type && m.recurrence_type !== 'NONE' &&
+  const recurringMessages: Message[] = messages.filter(
+    (m: Message) => m.recurrence_type && m.recurrence_type !== 'NONE' &&
            (m.status === 'SCHEDULED' || m.status === 'PENDING' || m.status === 'pending')
   )
   
-  // Mensagens ENVIADAS de agendamentos (foram agendadas e já foram enviadas)
-  const sentScheduledMessages = messages.filter(
-    (m) => 
+  const sentScheduledMessages: Message[] = messages.filter(
+    (m: Message) => 
       (m.status === 'SENT' || m.status === 'sent') &&
       m.scheduled_at &&
       (!m.recurrence_type || m.recurrence_type === 'NONE')
   )
   
-  // Mensagens ENVIADAS de recorrentes (foram recorrentes e já foram enviadas)
-  const sentRecurringMessages = messages.filter(
-    (m) => 
+  const sentRecurringMessages: Message[] = messages.filter(
+    (m: Message) => 
       (m.status === 'SENT' || m.status === 'sent') &&
       m.recurrence_type && 
       m.recurrence_type !== 'NONE'
   )
   
-  // Mensagens canceladas de agendamentos
-  const cancelledScheduledMessages = messages.filter(
-    (m) => 
+  const cancelledScheduledMessages: Message[] = messages.filter(
+    (m: Message) => 
       (m.status === 'cancelled' || m.status === 'CANCELLED') &&
       m.scheduled_at &&
       (!m.recurrence_type || m.recurrence_type === 'NONE')
   )
 
-  // Mensagens canceladas de recorrentes
-  const cancelledRecurringMessages = messages.filter(
-    (m) => 
+  const cancelledRecurringMessages: Message[] = messages.filter(
+    (m: Message) => 
       (m.status === 'cancelled' || m.status === 'CANCELLED') &&
       m.recurrence_type && 
       m.recurrence_type !== 'NONE'
   )
+
+  const sendNowMutation = useMutation({
+    mutationFn: api.messages.sendNow,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: messageKeys.list() })
+    },
+  })
+
+  const cancelMutation = useMutation({
+    mutationFn: api.messages.cancel,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: messageKeys.list() })
+    },
+  })
 
   return {
     scheduledMessages,
@@ -135,21 +164,27 @@ export function useScheduledMessages() {
     totalSentRecurring: sentRecurringMessages.length,
     totalCancelledScheduled: cancelledScheduledMessages.length,
     totalCancelledRecurring: cancelledRecurringMessages.length,
-    loading,
+    loading: isLoading,
+    isLoading,
+    isError,
     error,
     refetch,
-    sendNow,
-    cancel,
+    sendNow: sendNowMutation.mutate,
+    sendNowAsync: sendNowMutation.mutateAsync,
+    cancel: cancelMutation.mutate,
+    cancelAsync: cancelMutation.mutateAsync,
+    isSending: sendNowMutation.isPending,
+    isCancelling: cancelMutation.isPending,
   }
 }
 
 export function useMessageHistory() {
-  const { messages, loading, error, refetch } = useMessages()
+  const { data: messages = [], isLoading, isError, error, refetch } = useMessages()
   
-  const sentMessages = messages.filter((m) => m.status === 'SENT' || m.status === 'sent')
-  const deliveredMessages = messages.filter((m) => m.status === 'delivered' || m.status === 'DELIVERED')
-  const readMessages = messages.filter((m) => m.status === 'read' || m.status === 'READ')
-  const failedMessages = messages.filter((m) => m.status === 'failed' || m.status === 'FAILED')
+  const sentMessages: Message[] = messages.filter((m: Message) => m.status === 'SENT' || m.status === 'sent')
+  const deliveredMessages: Message[] = messages.filter((m: Message) => m.status === 'delivered' || m.status === 'DELIVERED')
+  const readMessages: Message[] = messages.filter((m: Message) => m.status === 'read' || m.status === 'READ')
+  const failedMessages: Message[] = messages.filter((m: Message) => m.status === 'failed' || m.status === 'FAILED')
 
   return {
     sentMessages,
@@ -160,7 +195,9 @@ export function useMessageHistory() {
     totalDelivered: deliveredMessages.length,
     totalRead: readMessages.length,
     totalFailed: failedMessages.length,
-    loading,
+    loading: isLoading,
+    isLoading,
+    isError,
     error,
     refetch,
   }

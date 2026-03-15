@@ -14,7 +14,7 @@ import {
   Clock,
 } from 'lucide-react'
 import { useMessages, useContacts, useConfirmations } from '@/hooks'
-import type { Message } from '@/types'
+import type { Message, Contact, Confirmation } from '@/types'
 import { getChatId } from '@/types'
 
 type MessageType = 'normal' | 'scheduled' | 'recurring' | 'confirmation'
@@ -45,14 +45,14 @@ export default function HistoricoPage() {
   const getContact = (phone: string | undefined) => {
     if (!phone) return { name: 'Desconhecido', phone: '-' }
     const cleanPhone = phone.replace('@c.us', '').replace('@g.us', '')
-    const contact = contacts.find((c) => c.phone === cleanPhone)
+    const contact = contacts.find((c: Contact) => c.phone === cleanPhone)
     return contact || { name: 'Desconhecido', phone: cleanPhone }
   }
 
   const historyItems: HistoryItem[] = useMemo(() => {
     const items: HistoryItem[] = []
 
-    messages.forEach((msg) => {
+    messages.forEach((msg: Message) => {
       const contact = getContact(msg.phone)
 
       let type: MessageType = 'normal'
@@ -73,7 +73,7 @@ export default function HistoricoPage() {
       })
     })
 
-    confirmations.forEach((conf) => {
+    confirmations.forEach((conf: Confirmation) => {
       items.push({
         id: conf.id,
         type: 'confirmation',
@@ -112,14 +112,14 @@ export default function HistoricoPage() {
 
   const stats = useMemo(() => {
     const normal = messages.filter(
-      (m) =>
+      (m: Message) =>
         !m.scheduled_at && (!m.recurrence_type || m.recurrence_type === 'NONE'),
     ).length
 
-    const scheduled = messages.filter((m) => m.scheduled_at).length
+    const scheduled = messages.filter((m: Message) => m.scheduled_at).length
 
     const recurring = messages.filter(
-      (m) => m.recurrence_type && m.recurrence_type !== 'NONE',
+      (m: Message) => m.recurrence_type && m.recurrence_type !== 'NONE',
     ).length
 
     const confirmation = confirmations.length

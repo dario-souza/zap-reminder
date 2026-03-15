@@ -35,7 +35,7 @@ export default function RecorrentesPage() {
     sendNow, 
     cancel 
   } = useScheduledMessages()
-  const { contacts, loading: contactsLoading } = useContacts()
+  const { contacts, isLoading: contactsLoading } = useContacts()
   const { schedule, send } = useMessages()
   
   const [searchTerm, setSearchTerm] = useState('')
@@ -154,7 +154,8 @@ export default function RecorrentesPage() {
           contactId: contact.id,
           scheduledAt: scheduledDate.toISOString(),
           recurrenceType,
-          recurrenceCron: cronPattern
+          recurrenceCron: cronPattern,
+          type: 'recurring',
         })
       }
       setMessage('')
