@@ -2,7 +2,8 @@ export { useContacts } from './useContacts'
 export { 
   useMessages, 
   useScheduledMessages,
-  useMessageHistory
+  useMessageHistory,
+  useSendBulk
 } from './useMessages'
 export { useTemplates } from './useTemplates'
 export { useConfirmations } from './useConfirmations'

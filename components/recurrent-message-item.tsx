@@ -11,7 +11,7 @@ interface RecurrentMessageItemProps {
   message: Message
   contact: Contact | null
   onSendNow: (message: Message) => void
-  onCancel: (message: Message) => void
+  onDelete: (message: Message) => void
   formatDate: (dateStr: string | null | undefined) => string
 }
 
@@ -19,7 +19,7 @@ export function RecurrentMessageItem({
   message,
   contact,
   onSendNow,
-  onCancel,
+  onDelete,
   formatDate
 }: RecurrentMessageItemProps) {
   const [isHovered, setIsHovered] = useState(false)
@@ -82,7 +82,7 @@ export function RecurrentMessageItem({
               variant="ghost" 
               size="icon" 
               className="text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30"
-              onClick={() => onCancel(message)}
+              onClick={() => onDelete(message)}
             >
               <Trash2 className="w-4 h-4" />
             </Button>

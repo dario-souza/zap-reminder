@@ -41,6 +41,8 @@ export default function ContatosPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [importing, setImporting] = useState(false)
   const [importResult, setImportResult] = useState<{ success: boolean; message: string } | null>(null)
+  const [isDeleteAllDialogOpen, setIsDeleteAllDialogOpen] = useState(false)
+  const [isDeletingAll, setIsDeletingAll] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const filteredContacts = useMemo(() => {
@@ -110,12 +112,24 @@ export default function ContatosPage() {
   }
 
   const handleDelete = async (id: string) => {
-    if (confirm('Tem certeza que deseja excluir este contato?')) {
-      try {
-        await remove(id)
-      } catch (err) {
-        console.error(err)
+    try {
+      await remove(id)
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  const handleDeleteAll = async () => {
+    setIsDeletingAll(true)
+    try {
+      for (const contact of contacts) {
+        await remove(contact.id)
       }
+      setIsDeleteAllDialogOpen(false)
+    } catch (err) {
+      console.error('Erro ao deletar todos:', err)
+    } finally {
+      setIsDeletingAll(false)
     }
   }
 
@@ -269,6 +283,37 @@ export default function ContatosPage() {
               <Download className="w-4 h-4 mr-2" />
               Exportar
             </Button>
+            {contacts.length > 0 && (
+              <Dialog open={isDeleteAllDialogOpen} onOpenChange={setIsDeleteAllDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" className="text-red-500 border-red-200 hover:bg-red-50 hover:text-red-600">
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Deletar Todos
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Confirmar Exclusão</DialogTitle>
+                    <DialogDescription>
+                      Tem certeza que deseja excluir todos os {contacts.length} contatos? Esta ação não pode ser desfeita.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="flex justify-end gap-2 mt-4">
+                    <Button variant="outline" onClick={() => setIsDeleteAllDialogOpen(false)}>
+                      Cancelar
+                    </Button>
+                    <Button 
+                      variant="destructive" 
+                      onClick={handleDeleteAll}
+                      disabled={isDeletingAll}
+                      className="bg-red-500 hover:bg-red-600"
+                    >
+                      {isDeletingAll ? 'Deletando...' : 'Deletar Todos'}
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            )}
             <Dialog open={isDialogOpen} onOpenChange={handleOpenChange}>
               <DialogTrigger asChild>
                 <Button className="bg-green-500 hover:bg-green-600">

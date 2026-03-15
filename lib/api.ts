@@ -39,6 +39,23 @@ export const api = {
       if (!res.ok) throw new Error(await res.text())
     },
 
+    delete: async (id: string) => {
+      const res = await fetch(`${BASE_URL}/messages/${id}`, {
+        method: 'DELETE',
+        headers: await getAuthHeaders(),
+      })
+      if (!res.ok) throw new Error(await res.text())
+    },
+
+    deleteAllRecurring: async () => {
+      const res = await fetch(`${BASE_URL}/messages/recurring/all`, {
+        method: 'DELETE',
+        headers: await getAuthHeaders(),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      return res.json()
+    },
+
     sendNow: async (id: string) => {
       const res = await fetch(`${BASE_URL}/messages/${id}/send`, {
         method: 'POST',

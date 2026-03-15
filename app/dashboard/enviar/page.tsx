@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Search, X, Smile, Variable, Send, Calendar, Minus } from 'lucide-react'
-import { useContacts, useMessages } from '@/hooks'
+import { useContacts, useMessages, useSendBulk } from '@/hooks'
 import type { Contact, CreateMessageDto } from '@/types'
 import { getChatId } from '@/types'
 
@@ -15,6 +15,7 @@ export default function EnviarPage() {
   const router = useRouter()
   const { contacts, isLoading: contactsLoading } = useContacts()
   const { send, sendNow } = useMessages()
+  const { mutate: sendBulk, isPending: isSendingBulk } = useSendBulk()
   
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedContacts, setSelectedContacts] = useState<Contact[]>([])
@@ -61,12 +62,24 @@ export default function EnviarPage() {
     setSuccess(null)
 
     try {
-      for (const contact of selectedContacts) {
+      const contactIds = selectedContacts.map(c => c.id)
+
+      if (selectedContacts.length === 1) {
         await send({
-          chatId: getChatId(contact.phone),
+          chatId: getChatId(selectedContacts[0].phone),
           body: message,
-          contactId: contact.id,
+          contactId: selectedContacts[0].id,
           type: 'instant',
+        })
+      } else {
+        await new Promise<void>((resolve, reject) => {
+          sendBulk(
+            { content: message, contactIds },
+            {
+              onSuccess: () => resolve(),
+              onError: (err: any) => reject(err),
+            }
+          )
         })
       }
       setSuccess(`${selectedContacts.length} mensagem(s) enviada(s) com sucesso!`)

@@ -72,40 +72,42 @@ function ContactSearch({
   }, [contacts, searchTerm])
 
   return (
-    <div className="relative">
-      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-      <Input
-        placeholder="Buscar contatos..."
-        value={searchTerm}
-        onChange={(e) => onSearchChange(e.target.value)}
-        onFocus={() => setIsOpen(true)}
-        onBlur={() => setTimeout(() => setIsOpen(false), 200)}
-        className="pl-10"
-      />
-      {isOpen && filteredContacts.length > 0 && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg max-h-60 overflow-y-auto z-10">
-          {filteredContacts.map((contact) => (
-            <button
-              key={contact.id}
-              onClick={() => onSelectContact(contact)}
-              className="w-full p-3 text-left hover:bg-slate-100 dark:hover:bg-slate-700 flex flex-col"
-            >
-              <span className="font-medium text-slate-900 dark:text-slate-100">
-                {contact.name}
-              </span>
-              <span className="text-sm text-slate-500">{contact.phone}</span>
-            </button>
-          ))}
-        </div>
-      )}
-      {isOpen && searchTerm && filteredContacts.length === 0 && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg p-3 z-10">
-          <p className="text-sm text-slate-500 text-center">Nenhum contato encontrado</p>
-        </div>
-      )}
+    <div className="space-y-2">
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+        <Input
+          placeholder="Buscar contatos..."
+          value={searchTerm}
+          onChange={(e) => onSearchChange(e.target.value)}
+          onFocus={() => setIsOpen(true)}
+          onBlur={() => setTimeout(() => setIsOpen(false), 200)}
+          className="pl-10"
+        />
+        {isOpen && filteredContacts.length > 0 && (
+          <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg max-h-60 overflow-y-auto z-10">
+            {filteredContacts.map((contact) => (
+              <button
+                key={contact.id}
+                onClick={() => onSelectContact(contact)}
+                className="w-full p-3 text-left hover:bg-slate-100 dark:hover:bg-slate-700 flex flex-col"
+              >
+                <span className="font-medium text-slate-900 dark:text-slate-100">
+                  {contact.name}
+                </span>
+                <span className="text-sm text-slate-500">{contact.phone}</span>
+              </button>
+            ))}
+          </div>
+        )}
+        {isOpen && searchTerm && filteredContacts.length === 0 && (
+          <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg p-3 z-10">
+            <p className="text-sm text-slate-500 text-center">Nenhum contato encontrado</p>
+          </div>
+        )}
+      </div>
       
       {selectedContacts.length > 0 && (
-        <div className="flex flex-wrap gap-2 mt-2">
+        <div className="flex flex-wrap gap-2">
           {selectedContacts.map((contact) => (
             <div
               key={contact.id}

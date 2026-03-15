@@ -35,6 +35,20 @@ export function useMessages() {
     },
   })
 
+  const deleteMutation = useMutation({
+    mutationFn: api.messages.delete,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: messageKeys.list() })
+    },
+  })
+
+  const deleteAllRecurringMutation = useMutation({
+    mutationFn: api.messages.deleteAllRecurring,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: messageKeys.list() })
+    },
+  })
+
   return {
     messages: (query.data ?? []) as Message[],
     schedule: createMutation.mutate,
@@ -45,10 +59,16 @@ export function useMessages() {
     cancelAsync: cancelMutation.mutateAsync,
     sendNow: sendNowMutation.mutate,
     sendNowAsync: sendNowMutation.mutateAsync,
+    delete: deleteMutation.mutate,
+    deleteAsync: deleteMutation.mutateAsync,
+    deleteAllRecurring: deleteAllRecurringMutation.mutate,
+    deleteAllRecurringAsync: deleteAllRecurringMutation.mutateAsync,
     isScheduling: createMutation.isPending,
     isSending: createMutation.isPending,
     isCancelling: cancelMutation.isPending,
     isSendingNow: sendNowMutation.isPending,
+    isDeleting: deleteMutation.isPending,
+    isDeletingAllRecurring: deleteAllRecurringMutation.isPending,
     ...query,
   }
 }
@@ -93,6 +113,18 @@ export function useSendTestMessage() {
   })
 }
 
+export function useSendBulk() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (data: { content: string; contactIds: string[]; scheduledAt?: string; sendNow?: boolean; recurrenceType?: string }) =>
+      api.messages.createBulk(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: messageKeys.list() })
+    },
+  })
+}
+
 export function useScheduledMessages() {
   const queryClient = useQueryClient()
   const { data: messages = [], isLoading, isError, error, refetch } = useMessages()
@@ -106,7 +138,7 @@ export function useScheduledMessages() {
   
   const recurringMessages: Message[] = messages.filter(
     (m: Message) => m.recurrence_type && m.recurrence_type !== 'NONE' &&
-           (m.status === 'SCHEDULED' || m.status === 'PENDING' || m.status === 'pending')
+           m.status !== 'cancelled' && m.status !== 'CANCELLED'
   )
   
   const sentScheduledMessages: Message[] = messages.filter(

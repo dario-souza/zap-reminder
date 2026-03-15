@@ -36,7 +36,7 @@ export default function RecorrentesPage() {
     cancel 
   } = useScheduledMessages()
   const { contacts, isLoading: contactsLoading } = useContacts()
-  const { schedule, send } = useMessages()
+  const { schedule, send, delete: deleteMessage, deleteAllRecurring, isDeleting, isDeletingAllRecurring } = useMessages()
   
   const [searchTerm, setSearchTerm] = useState('')
   const [contactSearchTerm, setContactSearchTerm] = useState('')
@@ -122,6 +122,28 @@ export default function RecorrentesPage() {
     }
   }
 
+  const handleDelete = async (msg: Message) => {
+    try {
+      await deleteMessage(msg.id)
+      await refetch()
+      setSuccess('Mensagem recorrente deletada com sucesso!')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao deletar')
+    }
+  }
+
+  const handleDeleteAll = async () => {
+    if (!confirm('Tem certeza que deseja deletar TODAS as mensagens recorrentes?')) return
+    
+    try {
+      await deleteAllRecurring()
+      await refetch()
+      setSuccess('Todas as mensagens recorrentes foram deletadas!')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao deletar todas')
+    }
+  }
+
   const handleCreate = async () => {
     if (selectedContacts.length === 0 || !message || !scheduledAt) return
     
@@ -135,15 +157,21 @@ export default function RecorrentesPage() {
       
       // Para mensagens recorrentes, precisamos gerar o cron pattern
       let cronPattern = ''
+      let messageType: 'scheduled' | 'recurring' = 'scheduled'
+      
       if (recurrenceType !== 'NONE') {
+        messageType = 'recurring'
+        const minutes = scheduledDate.getMinutes()
+        const hours = scheduledDate.getHours()
+        
         if (recurrenceType === 'WEEKLY') {
           // Cron para semana: minutos hora dia_mes mes dia_semana
           // Exemplo: 0 9 * * 1 (às 9h toda segunda-feira)
-          cronPattern = `0 ${scheduledDate.getHours()} * * ${scheduledDate.getDay()}`
+          cronPattern = `${minutes} ${hours} * * ${scheduledDate.getDay()}`
         } else if (recurrenceType === 'MONTHLY') {
           // Cron para mês: minutos hora dia_mes mes dia_semana
           // Exemplo: 0 9 1 * * (às 9h no primeiro dia de cada mês)
-          cronPattern = `0 ${scheduledDate.getHours()} ${scheduledDate.getDate()} * *`
+          cronPattern = `${minutes} ${hours} ${scheduledDate.getDate()} * *`
         }
       }
 
@@ -155,7 +183,7 @@ export default function RecorrentesPage() {
           scheduledAt: scheduledDate.toISOString(),
           recurrenceType,
           recurrenceCron: cronPattern,
-          type: 'recurring',
+          type: messageType,
         })
       }
       setMessage('')
@@ -328,6 +356,20 @@ export default function RecorrentesPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
+                  {filteredMessages.length > 0 && (
+                    <div className="flex justify-end">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-red-500 border-red-200 hover:bg-red-50 hover:text-red-600"
+                        onClick={handleDeleteAll}
+                        disabled={isDeletingAllRecurring}
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        {isDeletingAllRecurring ? 'Deletando...' : 'Deletar Todas'}
+                      </Button>
+                    </div>
+                  )}
                   {filteredMessages.map((msg) => {
                     const contact = getContact(msg.phone) ?? null
                     return (
@@ -336,7 +378,7 @@ export default function RecorrentesPage() {
                         message={msg}
                         contact={contact}
                         onSendNow={handleSendNow}
-                        onCancel={handleCancel}
+                        onDelete={handleDelete}
                         formatDate={formatDate}
                       />
                     )

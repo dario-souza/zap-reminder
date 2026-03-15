@@ -18,13 +18,13 @@ import Link from 'next/link'
 export default function DashboardPage() {
   const { contacts, isLoading: contactsLoading } = useContacts()
   const { messages } = useMessages()
-  const { totalScheduled } = useScheduledMessages()
+  const { totalScheduled, totalRecurring } = useScheduledMessages()
   const { confirmations } = useConfirmations()
   const { status: whatsappStatus, isConnected: whatsappConnected, loading: waLoading, refetch } = useWhatsApp()
 
-  const totalMessages = messages.length
-  const sentMessages = messages.filter(m => m.status === 'sent').length
+  const sentMessages = messages.filter(m => m.status === 'sent' || m.status === 'SENT').length
   const pendingConfirmations = confirmations.filter(c => c.status === 'pending').length
+  const confirmedConfirmations = confirmations.filter(c => c.status === 'confirmed').length
 
   const stats = [
     {
@@ -36,9 +36,9 @@ export default function DashboardPage() {
       href: '/dashboard/enviar'
     },
     {
-      title: 'Mensagens',
-      value: totalMessages,
-      description: 'Total de mensagens',
+      title: 'Enviadas',
+      value: sentMessages,
+      description: 'Mensagens enviadas',
       icon: MessageCircle,
       color: 'green',
       href: '/dashboard/historico'
@@ -52,9 +52,17 @@ export default function DashboardPage() {
       href: '/dashboard/agendamentos'
     },
     {
-      title: 'Confirmadas',
-      value: pendingConfirmations,
-      description: 'Confirmações pendentes',
+      title: 'Recorrentes',
+      value: totalRecurring,
+      description: 'Mensagens recorrentes',
+      icon: Send,
+      color: 'orange',
+      href: '/dashboard/recorrentes'
+    },
+    {
+      title: 'Confirmações',
+      value: confirmedConfirmations,
+      description: 'Confirmações recebidas',
       icon: CheckCircle,
       color: 'yellow',
       href: '/dashboard/confirmacoes'
@@ -71,6 +79,8 @@ export default function DashboardPage() {
         return 'bg-purple-100 dark:bg-purple-900/30 text-purple-500'
       case 'yellow':
         return 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-500'
+      case 'orange':
+        return 'bg-orange-100 dark:bg-orange-900/30 text-orange-500'
       default:
         return 'bg-slate-100 dark:bg-slate-800 text-slate-500'
     }
@@ -131,7 +141,7 @@ export default function DashboardPage() {
       </Card>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
         {stats.map((stat) => (
           <Link key={stat.title} href={stat.href}>
             <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
