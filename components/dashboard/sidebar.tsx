@@ -27,6 +27,9 @@ interface SidebarProps {
   user?: {
     name?: string | null
     email?: string | null
+    user_metadata?: {
+      name?: string | null
+    }
   }
   onLogout?: () => void
 }
@@ -123,7 +126,7 @@ export function Sidebar({ user, onLogout }: SidebarProps) {
             {!isCollapsed && (
               <div className="flex flex-col min-w-0">
                 <span className="font-medium text-slate-900 dark:text-slate-100 truncate">
-                  {user?.name || 'Usuário'}
+                  {user?.user_metadata?.name || user?.name || user?.email?.split('@')[0] || 'Usuário'}
                 </span>
                 <span className="text-xs text-slate-500 dark:text-slate-400 truncate">
                   WhatsApp

@@ -11,7 +11,11 @@ interface DashboardLayoutProps {
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const router = useRouter()
-  const [user, setUser] = useState<{ name?: string | null; email?: string | null } | null>(null)
+  const [user, setUser] = useState<{
+    name?: string | null
+    email?: string | null
+    user_metadata?: { name?: string | null }
+  } | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -23,7 +27,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         return
       }
       
-      setUser(user)
+      setUser(user as any)
       setLoading(false)
     }
 

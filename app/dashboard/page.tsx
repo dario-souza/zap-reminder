@@ -3,6 +3,8 @@
 import { useContacts, useMessages, useScheduledMessages, useConfirmations, useWhatsApp } from '@/hooks'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { supabase } from '@/lib/supabase'
+import { useEffect, useState } from 'react'
 import { 
   Users, 
   MessageCircle, 
@@ -21,6 +23,19 @@ export default function DashboardPage() {
   const { totalScheduled, totalRecurring } = useScheduledMessages()
   const { confirmations } = useConfirmations()
   const { status: whatsappStatus, isConnected: whatsappConnected, loading: waLoading, refetch } = useWhatsApp()
+  const [userName, setUserName] = useState<string>('')
+
+  useEffect(() => {
+    const getUserName = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user?.user_metadata?.name) {
+        setUserName(user.user_metadata.name)
+      } else if (user?.email) {
+        setUserName(user.email.split('@')[0])
+      }
+    }
+    getUserName()
+  }, [])
 
   const sentMessages = messages.filter(m => m.status === 'sent' || m.status === 'SENT').length
   const pendingConfirmations = confirmations.filter(c => c.status === 'pending').length
@@ -96,13 +111,18 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">
-          Dashboard
-        </h1>
-        <p className="text-slate-500 dark:text-slate-400">
-          Visão geral das suas atividades.
-        </p>
+      <div className="flex items-center gap-4">
+        <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
+          <Send className="w-6 h-6 text-green-500" />
+        </div>
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+            Bem-vindo, {userName || 'usuário'}!
+          </h1>
+          <p className="text-slate-500 dark:text-slate-400">
+            O que você gostaria de fazer hoje?
+          </p>
+        </div>
       </div>
 
       {/* Status WhatsApp */}

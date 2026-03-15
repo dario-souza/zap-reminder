@@ -273,6 +273,17 @@ export const api = {
       if (!res.ok) throw new Error(await res.text())
     },
   },
+
+  users: {
+    deleteAccount: async () => {
+      const res = await fetch(`${BASE_URL}/users/account`, {
+        method: 'DELETE',
+        headers: await getAuthHeaders(),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      return res.json()
+    },
+  },
 }
 
 export const contactsApi = api.contacts
