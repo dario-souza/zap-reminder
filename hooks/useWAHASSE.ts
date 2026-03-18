@@ -16,7 +16,7 @@ interface SessionStatusPayload {
 async function getSseUrl(sessionName: string): Promise<string> {
   const { data } = await supabase.auth.getSession()
   const token = data.session?.access_token
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+  const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001').replace(/\/api$/, '')
   return `${baseUrl}/waha/sse/${sessionName}?token=${token}`
 }
 

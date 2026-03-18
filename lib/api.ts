@@ -1,6 +1,7 @@
 import { supabase } from './supabase'
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+const WAHA_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001').replace(/\/api$/, '')
 
 async function getAuthHeaders(): Promise<HeadersInit> {
   const { data } = await supabase.auth.getSession()
@@ -287,7 +288,7 @@ export const api = {
 
   waha: {
     createSession: async (sessionName: string) => {
-      const res = await fetch(`${BASE_URL}/waha/session/start`, {
+      const res = await fetch(`${WAHA_URL}/waha/session/start`, {
         method: 'POST',
         headers: await getAuthHeaders(),
       })
@@ -296,7 +297,7 @@ export const api = {
     },
 
     getStatus: async () => {
-      const res = await fetch(`${BASE_URL}/waha/session/status`, {
+      const res = await fetch(`${WAHA_URL}/waha/session/status`, {
         headers: await getAuthHeaders(),
       })
       if (!res.ok) throw new Error(await res.text())
@@ -304,7 +305,7 @@ export const api = {
     },
 
     disconnect: async () => {
-      const res = await fetch(`${BASE_URL}/waha/session/disconnect`, {
+      const res = await fetch(`${WAHA_URL}/waha/session/disconnect`, {
         method: 'POST',
         headers: await getAuthHeaders(),
       })
