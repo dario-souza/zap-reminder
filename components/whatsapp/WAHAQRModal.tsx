@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useWAHASessionStore } from '../../stores/wahaSessionStore'
 import { api } from '../../lib/api'
 
@@ -13,11 +13,16 @@ const STATUS_LABEL: Record<string, string> = {
 }
 
 export function WAHAQRModal() {
-  const { isModalOpen, sessionName, status, setQrCode, setStatus, closeModal } =
+  const { isModalOpen, sessionName, status, qrCode, setQrCode, setStatus, closeModal } =
     useWAHASessionStore()
+  
+  const retryCountRef = useRef(0)
+  const maxRetries = 3
 
   useEffect(() => {
     if (!isModalOpen || !sessionName) return
+    
+    retryCountRef.current = 0
 
     const pollStatus = async () => {
       try {
@@ -27,12 +32,23 @@ export function WAHAQRModal() {
           setStatus(data.status as any)
           
           if (data.status === 'WORKING') {
+            retryCountRef.current = 0
             closeModal()
             return
           }
           
           if (data.status === 'FAILED') {
-            closeModal()
+            retryCountRef.current++
+            console.log(`[WAHA] Tentativa de reconexão: ${retryCountRef.current}/${maxRetries}`)
+            
+            if (retryCountRef.current < maxRetries) {
+              setStatus('STARTING')
+              await api.waha.createSession(sessionName)
+            } else {
+              retryCountRef.current = 0
+              closeModal()
+              alert('Não foi possível conectar. Tente novamente mais tarde.')
+            }
             return
           }
         }
@@ -69,10 +85,20 @@ export function WAHAQRModal() {
         </p>
 
         <div className="flex min-h-56 items-center justify-center rounded-lg bg-gray-50 dark:bg-gray-700">
-          <div className="flex flex-col items-center gap-2 text-sm text-gray-400 dark:text-gray-500">
-            <span className="animate-spin text-xl">⏳</span>
-            {status === 'SCAN_QR_CODE' ? 'Aguardando QR code...' : 'Aguardando...'}
-          </div>
+          {qrCode ? (
+            <img
+              src={qrCode}
+              alt="QR Code WhatsApp"
+              width={208}
+              height={208}
+              className="rounded"
+            />
+          ) : (
+            <div className="flex flex-col items-center gap-2 text-sm text-gray-400 dark:text-gray-500">
+              <span className="animate-spin text-xl">⏳</span>
+              {status === 'SCAN_QR_CODE' ? 'Gerando QR code...' : 'Aguardando...'}
+            </div>
+          )}
         </div>
 
         <p className="mt-3 text-center text-xs text-gray-400 dark:text-gray-500">
