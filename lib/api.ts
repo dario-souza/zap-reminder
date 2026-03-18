@@ -284,6 +284,34 @@ export const api = {
       return res.json()
     },
   },
+
+  waha: {
+    createSession: async (sessionName: string) => {
+      const res = await fetch(`${BASE_URL}/waha/session/start`, {
+        method: 'POST',
+        headers: await getAuthHeaders(),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      return res.json()
+    },
+
+    getStatus: async () => {
+      const res = await fetch(`${BASE_URL}/waha/session/status`, {
+        headers: await getAuthHeaders(),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      return res.json()
+    },
+
+    disconnect: async () => {
+      const res = await fetch(`${BASE_URL}/waha/session/disconnect`, {
+        method: 'POST',
+        headers: await getAuthHeaders(),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      return res.json()
+    },
+  },
 }
 
 export const contactsApi = api.contacts
