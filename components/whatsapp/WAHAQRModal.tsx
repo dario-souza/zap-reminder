@@ -1,7 +1,8 @@
 'use client'
 
+import { useEffect } from 'react'
 import { useWAHASessionStore } from '../../stores/wahaSessionStore'
-import { useWAHASSE } from '../../hooks/useWAHASSE'
+import { api } from '../../lib/api'
 
 const STATUS_LABEL: Record<string, string> = {
   STARTING: 'Iniciando...',
@@ -12,10 +13,44 @@ const STATUS_LABEL: Record<string, string> = {
 }
 
 export function WAHAQRModal() {
-  const { isModalOpen, sessionName, qrCode, status, closeModal } =
+  const { isModalOpen, sessionName, status, setQrCode, setStatus, closeModal } =
     useWAHASessionStore()
 
-  useWAHASSE(isModalOpen ? sessionName : null)
+  useEffect(() => {
+    if (!isModalOpen || !sessionName) return
+
+    const pollStatus = async () => {
+      try {
+        const data = await api.waha.getStatus()
+        
+        if (data.status) {
+          setStatus(data.status as any)
+          
+          if (data.status === 'WORKING') {
+            closeModal()
+            return
+          }
+          
+          if (data.status === 'FAILED') {
+            closeModal()
+            return
+          }
+        }
+
+        if (data.qrCode) {
+          setQrCode(data.qrCode)
+        }
+      } catch (err) {
+        console.error('Erro ao buscar status:', err)
+      }
+    }
+
+    pollStatus()
+    
+    const interval = setInterval(pollStatus, 3000)
+
+    return () => clearInterval(interval)
+  }, [isModalOpen, sessionName, setStatus, setQrCode, closeModal])
 
   if (!isModalOpen) return null
 
@@ -34,20 +69,10 @@ export function WAHAQRModal() {
         </p>
 
         <div className="flex min-h-56 items-center justify-center rounded-lg bg-gray-50 dark:bg-gray-700">
-          {qrCode ? (
-            <img
-              src={qrCode}
-              alt="QR Code WhatsApp"
-              width={208}
-              height={208}
-              className="rounded"
-            />
-          ) : (
-            <div className="flex flex-col items-center gap-2 text-sm text-gray-400 dark:text-gray-500">
-              <span className="animate-spin text-xl">⏳</span>
-              Gerando QR code...
-            </div>
-          )}
+          <div className="flex flex-col items-center gap-2 text-sm text-gray-400 dark:text-gray-500">
+            <span className="animate-spin text-xl">⏳</span>
+            {status === 'SCAN_QR_CODE' ? 'Aguardando QR code...' : 'Aguardando...'}
+          </div>
         </div>
 
         <p className="mt-3 text-center text-xs text-gray-400 dark:text-gray-500">
