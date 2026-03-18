@@ -2,24 +2,19 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../lib/api'
 import { useWAHASessionStore } from '../stores/wahaSessionStore'
 
-interface WAHASession {
-  sessionName: string
-  status: string
-}
-
 export function useCreateWAHASession() {
   const queryClient = useQueryClient()
   const { setSessionName, setStatus, openModal } = useWAHASessionStore()
 
   return useMutation({
     mutationFn: (sessionName: string) =>
-      api.waha.createSession(sessionName) as Promise<WAHASession>,
+      api.waha.createSession(sessionName),
 
-    onSuccess: (data) => {
-      setSessionName(data.sessionName)
-      setStatus('STARTING' as any)
+    onSuccess: (_, sessionName) => {
+      setSessionName(sessionName)
+      setStatus('STARTING')
       openModal()
-      queryClient.setQueryData(['waha-session', data.sessionName], data)
+      queryClient.setQueryData(['waha-session', sessionName], { sessionName, status: 'STARTING' })
     },
   })
 }

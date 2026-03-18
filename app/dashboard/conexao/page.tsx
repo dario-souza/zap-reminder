@@ -4,8 +4,10 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { useWhatsApp } from '@/hooks/useWhatsApp'
-import { QRCodeModal } from '@/components/whatsapp/qrcode-modal'
+import { WAHAQRModal } from '@/components/whatsapp/WAHAQRModal'
+import { useWAHASessionStore } from '@/stores/wahaSessionStore'
+import { useCreateWAHASession } from '@/hooks/useCreateWAHASession'
+import { useAuthStore } from '@/stores/authStore'
 import { 
   Smartphone, 
   CheckCircle, 
@@ -17,30 +19,32 @@ import {
 } from 'lucide-react'
 
 export default function ConexaoPage() {
-  const { 
-    status,
-    loading, 
-    error,
-    isConnected,
-    connect,
-    disconnect,
-    getQRCode,
-    refetch
-  } = useWhatsApp()
+  const { user } = useAuthStore()
+  const { status, isModalOpen, openModal, closeModal } = useWAHASessionStore()
+  const { mutate, isPending } = useCreateWAHASession()
   
   const [testPhone, setTestPhone] = useState('')
   const [testMessage, setTestMessage] = useState('')
   const [isSendingTest, setIsSendingTest] = useState(false)
-  const [isQRModalOpen, setIsQRModalOpen] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
+  const isConnected = status === 'WORKING'
+
   const handleConnect = () => {
-    setIsQRModalOpen(true)
+    if (user?.id) {
+      const sessionName = `user_${user.id.replace(/-/g, '_').substring(0, 40)}`
+      mutate(sessionName)
+    }
   }
 
   const handleDisconnect = async () => {
-    await disconnect()
-    setMessage({ type: 'success', text: 'WhatsApp desconectado!' })
+    try {
+      const { api } = await import('@/lib/api')
+      await api.waha.disconnect()
+      setMessage({ type: 'success', text: 'WhatsApp desconectado!' })
+    } catch (err) {
+      setMessage({ type: 'error', text: err instanceof Error ? err.message : 'Erro ao desconectar' })
+    }
   }
 
   const handleSendTest = async (e: React.FormEvent) => {
@@ -62,19 +66,12 @@ export default function ConexaoPage() {
     }
   }
 
-  const handleConnected = () => {
-    setMessage({ type: 'success', text: 'WhatsApp conectado!' })
-    setIsQRModalOpen(false)
-    refetch()
-  }
-
   const getStatusLabel = () => {
-    if (!status) return 'Verificando...'
-    switch (status.status) {
-      case 'working': return 'Conectado'
-      case 'starting': return 'Iniciando...'
-      case 'scan_qr_code': return 'Aguardando QR Code'
-      case 'failed': return 'Falhou'
+    switch (status) {
+      case 'WORKING': return 'Conectado'
+      case 'STARTING': return 'Iniciando...'
+      case 'SCAN_QR_CODE': return 'Aguardando QR Code'
+      case 'FAILED': return 'Falhou'
       default: return 'Desconectado'
     }
   }
@@ -105,10 +102,10 @@ export default function ConexaoPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {loading ? (
+          {isPending ? (
             <div className="flex items-center justify-center py-8">
               <RefreshCw className="w-6 h-6 animate-spin text-green-500" />
-              <span className="ml-2">Verificando...</span>
+              <span className="ml-2">Iniciando...</span>
             </div>
           ) : isConnected ? (
             <div className="flex flex-col gap-4">
@@ -116,9 +113,7 @@ export default function ConexaoPage() {
                 <CheckCircle className="w-10 h-10 text-green-600" />
                 <div>
                   <h3 className="text-lg font-semibold text-green-800">WhatsApp Conectado</h3>
-                  {status?.pushName && (
-                    <p className="text-green-700">{status.pushName}</p>
-                  )}
+                  <p className="text-green-700">{getStatusLabel()}</p>
                 </div>
               </div>
               <Button variant="outline" onClick={handleDisconnect} className="w-full">
@@ -141,16 +136,6 @@ export default function ConexaoPage() {
               </Button>
             </div>
           )}
-          
-          <Button 
-            variant="ghost" 
-            onClick={() => refetch()} 
-            className="w-full mt-2"
-            disabled={loading}
-          >
-            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-            Atualizar Status
-          </Button>
         </CardContent>
       </Card>
 
@@ -195,13 +180,7 @@ export default function ConexaoPage() {
         </Card>
       )}
 
-      <QRCodeModal
-        open={isQRModalOpen}
-        onOpenChange={setIsQRModalOpen}
-        onConnected={handleConnected}
-        getQRCode={getQRCode}
-        checkStatus={refetch}
-      />
+      <WAHAQRModal />
     </div>
   )
 }
