@@ -53,7 +53,7 @@ export default function HistoricoPage() {
     const items: HistoryItem[] = []
 
     messages.forEach((msg: Message) => {
-      if (msg.status !== 'sent' && msg.status !== 'SENT') return
+      if (msg.status !== 'sent') return
       
       const contact = getContact(msg.phone)
 

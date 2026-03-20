@@ -130,42 +130,42 @@ export function useScheduledMessages() {
   const { data: messages = [], isLoading, isError, error, refetch } = useMessages()
   
   const scheduledMessages: Message[] = messages.filter(
-    (m: Message) => 
-      (m.status === 'SCHEDULED' || m.status === 'PENDING' || m.status === 'pending') && 
-      m.scheduled_at && 
-      (!m.recurrence_type || m.recurrence_type === 'NONE')
-  )
-  
-  const recurringMessages: Message[] = messages.filter(
-    (m: Message) => m.recurrence_type && m.recurrence_type !== 'NONE' &&
-           m.status !== 'cancelled' && m.status !== 'CANCELLED'
-  )
-  
-  const sentScheduledMessages: Message[] = messages.filter(
-    (m: Message) => 
-      (m.status === 'SENT' || m.status === 'sent') &&
+    (m: Message) =>
+      (m.status === 'scheduled' || m.status === 'pending') &&
       m.scheduled_at &&
       (!m.recurrence_type || m.recurrence_type === 'NONE')
   )
-  
+
+  const recurringMessages: Message[] = messages.filter(
+    (m: Message) => m.recurrence_type && m.recurrence_type !== 'NONE' &&
+           m.status !== 'cancelled'
+  )
+
+  const sentScheduledMessages: Message[] = messages.filter(
+    (m: Message) =>
+      m.status === 'sent' &&
+      m.scheduled_at &&
+      (!m.recurrence_type || m.recurrence_type === 'NONE')
+  )
+
   const sentRecurringMessages: Message[] = messages.filter(
-    (m: Message) => 
-      (m.status === 'SENT' || m.status === 'sent') &&
-      m.recurrence_type && 
+    (m: Message) =>
+      m.status === 'sent' &&
+      m.recurrence_type &&
       m.recurrence_type !== 'NONE'
   )
-  
+
   const cancelledScheduledMessages: Message[] = messages.filter(
-    (m: Message) => 
-      (m.status === 'cancelled' || m.status === 'CANCELLED') &&
+    (m: Message) =>
+      m.status === 'cancelled' &&
       m.scheduled_at &&
       (!m.recurrence_type || m.recurrence_type === 'NONE')
   )
 
   const cancelledRecurringMessages: Message[] = messages.filter(
-    (m: Message) => 
-      (m.status === 'cancelled' || m.status === 'CANCELLED') &&
-      m.recurrence_type && 
+    (m: Message) =>
+      m.status === 'cancelled' &&
+      m.recurrence_type &&
       m.recurrence_type !== 'NONE'
   )
 
@@ -213,10 +213,10 @@ export function useScheduledMessages() {
 export function useMessageHistory() {
   const { data: messages = [], isLoading, isError, error, refetch } = useMessages()
   
-  const sentMessages: Message[] = messages.filter((m: Message) => m.status === 'SENT' || m.status === 'sent')
-  const deliveredMessages: Message[] = messages.filter((m: Message) => m.status === 'delivered' || m.status === 'DELIVERED')
-  const readMessages: Message[] = messages.filter((m: Message) => m.status === 'read' || m.status === 'READ')
-  const failedMessages: Message[] = messages.filter((m: Message) => m.status === 'failed' || m.status === 'FAILED')
+  const sentMessages: Message[] = messages.filter((m: Message) => m.status === 'sent')
+  const deliveredMessages: Message[] = messages.filter((m: Message) => m.status === 'delivered')
+  const readMessages: Message[] = messages.filter((m: Message) => m.status === 'read')
+  const failedMessages: Message[] = messages.filter((m: Message) => m.status === 'failed')
 
   return {
     sentMessages,

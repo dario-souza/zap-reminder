@@ -37,7 +37,7 @@ export default function DashboardPage() {
     getUserName()
   }, [])
 
-  const sentMessages = messages.filter(m => m.status === 'sent' || m.status === 'SENT').length
+  const sentMessages = messages.filter(m => m.status === 'sent').length
   const pendingConfirmations = confirmations.filter(c => c.status === 'pending').length
   const confirmedConfirmations = confirmations.filter(c => c.status === 'confirmed').length
 

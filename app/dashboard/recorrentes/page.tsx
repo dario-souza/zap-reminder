@@ -43,8 +43,11 @@ export default function RecorrentesPage() {
   const [selectedContacts, setSelectedContacts] = useState<Contact[]>([])
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [message, setMessage] = useState('')
-  const [scheduledAt, setScheduledAt] = useState('')
   const [recurrenceType, setRecurrenceType] = useState<'NONE' | 'WEEKLY' | 'MONTHLY'>('NONE')
+  const [recurrenceDateTime, setRecurrenceDateTime] = useState('')
+  const [recurrenceDayOfWeek, setRecurrenceDayOfWeek] = useState(-1)
+  const [recurrenceHour, setRecurrenceHour] = useState(9)
+  const [recurrenceMinute, setRecurrenceMinute] = useState(0)
   const [isCreating, setIsCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
@@ -62,8 +65,8 @@ export default function RecorrentesPage() {
 
   const activeRecurringMessages = useMemo(() => {
     // Mostra todas as mensagens recorrentes que não estão canceladas
-    return recurringMessages.filter((msg) => 
-      (msg.status !== 'CANCELLED' && msg.status !== 'cancelled')
+    return recurringMessages.filter((msg) =>
+      msg.status !== 'cancelled'
     )
   }, [recurringMessages])
 
@@ -145,50 +148,39 @@ export default function RecorrentesPage() {
   }
 
   const handleCreate = async () => {
-    if (selectedContacts.length === 0 || !message || !scheduledAt) return
-    
+    if (
+      selectedContacts.length === 0 ||
+      !message ||
+      recurrenceType === 'NONE' ||
+      (recurrenceType === 'WEEKLY' && recurrenceDayOfWeek < 0) ||
+      (recurrenceType === 'MONTHLY' && !recurrenceDateTime)
+    ) return
+
     setIsCreating(true)
     setError(null)
     setSuccess(null)
-    
-    try {
-      // Obter a data de agendamento e converter para o formato correto
-      const scheduledDate = new Date(scheduledAt)
-      
-      // Para mensagens recorrentes, precisamos gerar o cron pattern
-      let cronPattern = ''
-      let messageType: 'scheduled' | 'recurring' = 'scheduled'
-      
-      if (recurrenceType !== 'NONE') {
-        messageType = 'recurring'
-        const minutes = scheduledDate.getMinutes()
-        const hours = scheduledDate.getHours()
-        
-        if (recurrenceType === 'WEEKLY') {
-          // Cron para semana: minutos hora dia_mes mes dia_semana
-          // Exemplo: 0 9 * * 1 (às 9h toda segunda-feira)
-          cronPattern = `${minutes} ${hours} * * ${scheduledDate.getDay()}`
-        } else if (recurrenceType === 'MONTHLY') {
-          // Cron para mês: minutos hora dia_mes mes dia_semana
-          // Exemplo: 0 9 1 * * (às 9h no primeiro dia de cada mês)
-          cronPattern = `${minutes} ${hours} ${scheduledDate.getDate()} * *`
-        }
-      }
 
+    try {
       for (const contact of selectedContacts) {
         await schedule({
           chatId: getChatId(contact.phone),
           body: message,
           contactId: contact.id,
-          scheduledAt: scheduledDate.toISOString(),
           recurrenceType,
-          recurrenceCron: cronPattern,
-          type: messageType,
+          recurrenceCron: '',
+          recurrenceDayOfWeek: recurrenceType === 'WEEKLY' ? recurrenceDayOfWeek : undefined,
+          recurrenceDayOfMonth: recurrenceType === 'MONTHLY' ? new Date(recurrenceDateTime).getDate() : undefined,
+          recurrenceHour: recurrenceType === 'WEEKLY' ? recurrenceHour : new Date(recurrenceDateTime).getHours(),
+          recurrenceMinute: recurrenceType === 'WEEKLY' ? recurrenceMinute : new Date(recurrenceDateTime).getMinutes(),
+          type: 'recurring',
         })
       }
       setMessage('')
-      setScheduledAt('')
       setRecurrenceType('NONE')
+      setRecurrenceDateTime('')
+      setRecurrenceDayOfWeek(-1)
+      setRecurrenceHour(9)
+      setRecurrenceMinute(0)
       setSelectedContacts([])
       setSuccess(`${selectedContacts.length} mensagem(s) recorrente(s) criada(s) com sucesso!`)
       await refetch()
@@ -396,21 +388,30 @@ export default function RecorrentesPage() {
             contactSearchTerm={contactSearchTerm}
             isSearchOpen={isSearchOpen}
             message={message}
-            scheduledAt={scheduledAt}
             recurrenceType={recurrenceType}
+            recurrenceDateTime={recurrenceDateTime}
+            recurrenceDayOfWeek={recurrenceDayOfWeek}
+            recurrenceHour={recurrenceHour}
+            recurrenceMinute={recurrenceMinute}
             isCreating={isCreating}
             onContactSearchChange={setContactSearchTerm}
             onSearchOpenChange={setIsSearchOpen}
             onAddContact={addContact}
             onRemoveContact={removeContact}
             onMessageChange={setMessage}
-            onScheduledAtChange={setScheduledAt}
             onRecurrenceTypeChange={setRecurrenceType}
+            onRecurrenceDateTimeChange={setRecurrenceDateTime}
+            onRecurrenceDayOfWeekChange={setRecurrenceDayOfWeek}
+            onRecurrenceHourChange={setRecurrenceHour}
+            onRecurrenceMinuteChange={setRecurrenceMinute}
             onCreate={handleCreate}
             onCancel={() => {
               setMessage('')
-              setScheduledAt('')
               setRecurrenceType('NONE')
+              setRecurrenceDateTime('')
+              setRecurrenceDayOfWeek(-1)
+              setRecurrenceHour(9)
+              setRecurrenceMinute(0)
               setSelectedContacts([])
             }}
             onClearSearch={clearSearch}

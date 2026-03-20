@@ -24,7 +24,7 @@ export interface UpdateContactDto {
   email?: string
 }
 
-export type MessageStatus = 'pending' | 'sent' | 'delivered' | 'read' | 'failed' | 'cancelled' | 'SCHEDULED' | 'PENDING' | 'SENT' | 'DELIVERED' | 'READ' | 'FAILED' | 'CANCELLED'
+export type MessageStatus = 'pending' | 'sent' | 'delivered' | 'read' | 'failed' | 'cancelled' | 'scheduled'
 export type MessageType = 'instant' | 'scheduled' | 'recurring'
 
 export interface Message {
@@ -48,6 +48,10 @@ export interface Message {
   updated_at: string
   recurrence_type?: string
   recurrence_cron?: string
+  recurrence_day_of_week?: number
+  recurrence_day_of_month?: number
+  recurrence_hour?: number
+  recurrence_minute?: number
   reminder_days?: number
   is_reminder?: boolean
   reminder_sent?: boolean
@@ -63,6 +67,10 @@ export interface CreateMessageDto {
   scheduledAt?: string
   recurrenceType?: string
   recurrenceCron?: string
+  recurrenceDayOfWeek?: number
+  recurrenceDayOfMonth?: number
+  recurrenceHour?: number
+  recurrenceMinute?: number
 }
 
 export interface BatchMessageDto {

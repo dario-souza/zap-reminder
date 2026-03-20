@@ -1,7 +1,6 @@
 import { supabase } from './supabase'
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
-const WAHA_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001').replace(/\/api$/, '')
 
 async function getAuthHeaders(): Promise<HeadersInit> {
   const { data } = await supabase.auth.getSession()
@@ -279,34 +278,6 @@ export const api = {
     deleteAccount: async () => {
       const res = await fetch(`${BASE_URL}/users/account`, {
         method: 'DELETE',
-        headers: await getAuthHeaders(),
-      })
-      if (!res.ok) throw new Error(await res.text())
-      return res.json()
-    },
-  },
-
-  waha: {
-    createSession: async (sessionName: string) => {
-      const res = await fetch(`${WAHA_URL}/waha/session/start`, {
-        method: 'POST',
-        headers: await getAuthHeaders(),
-      })
-      if (!res.ok) throw new Error(await res.text())
-      return res.json()
-    },
-
-    getStatus: async () => {
-      const res = await fetch(`${WAHA_URL}/waha/session/status`, {
-        headers: await getAuthHeaders(),
-      })
-      if (!res.ok) throw new Error(await res.text())
-      return res.json()
-    },
-
-    disconnect: async () => {
-      const res = await fetch(`${WAHA_URL}/waha/session/disconnect`, {
-        method: 'POST',
         headers: await getAuthHeaders(),
       })
       if (!res.ok) throw new Error(await res.text())

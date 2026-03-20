@@ -7,14 +7,14 @@ export function useWAHASessionPolling(sessionName: string | null) {
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['waha-session-status', sessionName],
-    queryFn: () => api.waha.getStatus(),
+    queryFn: () => api.session.status(),
     enabled: !!sessionName,
     refetchInterval: 3000,
   })
 
   if (data?.status && sessionName) {
     setStatus(data.status as any)
-    
+
     if (data.status === 'WORKING') {
       closeModal()
     }
@@ -23,7 +23,7 @@ export function useWAHASessionPolling(sessionName: string | null) {
   return {
     status: data?.status,
     phone: data?.phone,
-    qrCode: data?.qrCode,
+    qrCode: data?.qr,
     isLoading,
     error,
   }

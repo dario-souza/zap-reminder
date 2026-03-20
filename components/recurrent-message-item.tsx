@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Message, Contact } from '@/types'
 import { getChatId } from '@/types'
 import { Send, Trash2, Calendar, Repeat } from 'lucide-react'
+import { formatRecurrenceLabel } from '@/lib/recurrence'
 
 interface RecurrentMessageItemProps {
   message: Message
@@ -41,16 +42,16 @@ export function RecurrentMessageItem({
                 ({contact?.phone || message.phone || '-'})
               </span>
               <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                message.status === 'PENDING' || message.status === 'pending' || message.status === 'SCHEDULED'
+                message.status === 'pending' || message.status === 'scheduled'
                   ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-                  : message.status === 'SENT' || message.status === 'sent'
+                  : message.status === 'sent'
                   ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
                   : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
               }`}>
-                {message.status === 'PENDING' || message.status === 'pending' || message.status === 'SCHEDULED' 
-                  ? 'Pendente' 
-                  : message.status === 'SENT' || message.status === 'sent' 
-                  ? 'Enviada' 
+                {message.status === 'pending' || message.status === 'scheduled'
+                  ? 'Pendente'
+                  : message.status === 'sent'
+                  ? 'Enviada'
                   : 'Cancelada'}
               </span>
               {message.recurrence_type && message.recurrence_type !== 'NONE' && (
@@ -63,12 +64,17 @@ export function RecurrentMessageItem({
               {message.content}
             </p>
             <div className="flex items-center gap-2 mt-2 text-sm text-slate-500">
-              <Calendar className="w-4 h-4" />
-              {formatDate(message.scheduled_at || message.next_send_at)}
+              <Repeat className="w-4 h-4" />
+              {message.recurrence_cron ? formatRecurrenceLabel(message.recurrence_cron) : (
+                <>
+                  {message.recurrence_type === 'WEEKLY' ? 'Semanal' : 'Mensal'}
+                  {message.recurrence_hour !== undefined && ` às ${String(message.recurrence_hour).padStart(2, '0')}:${String(message.recurrence_minute ?? 0).padStart(2, '0')}`}
+                </>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2 ml-4">
-            {(message.status === 'PENDING' || message.status === 'pending' || message.status === 'SCHEDULED') && (
+            {(message.status === 'pending' || message.status === 'scheduled') && (
               <Button 
                 variant="ghost" 
                 size="icon" 

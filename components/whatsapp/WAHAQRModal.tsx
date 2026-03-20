@@ -13,37 +13,37 @@ const STATUS_LABEL: Record<string, string> = {
 }
 
 export function WAHAQRModal() {
-  const { isModalOpen, sessionName, status, qrCode, setQrCode, setStatus, closeModal } =
+  const { isModalOpen, status, qrCode, setQrCode, setStatus, closeModal } =
     useWAHASessionStore()
-  
+
   const retryCountRef = useRef(0)
   const maxRetries = 3
 
   useEffect(() => {
-    if (!isModalOpen || !sessionName) return
-    
+    if (!isModalOpen) return
+
     retryCountRef.current = 0
 
     const pollStatus = async () => {
       try {
-        const data = await api.waha.getStatus()
-        
+        const data = await api.session.status()
+
         if (data.status) {
           setStatus(data.status as any)
-          
+
           if (data.status === 'WORKING') {
             retryCountRef.current = 0
             closeModal()
             return
           }
-          
+
           if (data.status === 'FAILED') {
             retryCountRef.current++
             console.log(`[WAHA] Tentativa de reconexão: ${retryCountRef.current}/${maxRetries}`)
-            
+
             if (retryCountRef.current < maxRetries) {
               setStatus('STARTING')
-              await api.waha.createSession(sessionName)
+              await api.session.start()
             } else {
               retryCountRef.current = 0
               closeModal()
@@ -53,20 +53,41 @@ export function WAHAQRModal() {
           }
         }
 
-        if (data.qrCode) {
-          setQrCode(data.qrCode)
+        if (data.qr) {
+          setQrCode(data.qr)
         }
       } catch (err) {
         console.error('Erro ao buscar status:', err)
       }
     }
 
+    const pollQR = async () => {
+      try {
+        const data = await api.session.qrCode()
+        if (data.qr) {
+          setQrCode(data.qr)
+        }
+        if (data.connected) {
+          setStatus('WORKING')
+          closeModal()
+        }
+      } catch (err) {
+        console.error('Erro ao buscar QR:', err)
+      }
+    }
+
     pollStatus()
-    
-    const interval = setInterval(pollStatus, 3000)
+    pollQR()
+
+    const interval = setInterval(() => {
+      pollStatus()
+      if (status === 'SCAN_QR_CODE') {
+        pollQR()
+      }
+    }, 3000)
 
     return () => clearInterval(interval)
-  }, [isModalOpen, sessionName, setStatus, setQrCode, closeModal])
+  }, [isModalOpen, status, setStatus, setQrCode, closeModal])
 
   if (!isModalOpen) return null
 

@@ -152,8 +152,8 @@ function MessageCard({
     }).format(new Date(dateStr))
   }
 
-  const isPending = message.status === 'PENDING' || message.status === 'pending'
-  const isScheduled = message.status === 'SCHEDULED'
+  const isPending = message.status === 'pending'
+  const isScheduled = message.status === 'scheduled'
 
   return (
     <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700">
@@ -240,16 +240,16 @@ export default function AgendamentosPage() {
     if (statusFilter !== 'all') {
       messages = messages.filter((msg) => {
         if (statusFilter === 'scheduled') {
-          return msg.status === 'SCHEDULED'
+          return msg.status === 'scheduled'
         }
         if (statusFilter === 'pending') {
-          return msg.status === 'PENDING' || msg.status === 'pending'
+          return msg.status === 'pending'
         }
         if (statusFilter === 'sent') {
-          return msg.status === 'SENT' || msg.status === 'sent'
+          return msg.status === 'sent'
         }
         if (statusFilter === 'cancelled') {
-          return msg.status === 'CANCELLED' || msg.status === 'cancelled'
+          return msg.status === 'cancelled'
         }
         return true
       })

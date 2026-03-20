@@ -1,28 +1,51 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { WAHAQRModal } from '@/components/whatsapp/WAHAQRModal'
 import { useWAHASessionStore } from '@/stores/wahaSessionStore'
-import { useCreateWAHASession } from '@/hooks/useCreateWAHASession'
-import { useAuthStore } from '@/stores/authStore'
-import { 
-  Smartphone, 
-  CheckCircle, 
-  XCircle, 
-  RefreshCw, 
-  Link2, 
+import { api } from '@/lib/api'
+import { useQueryClient } from '@tanstack/react-query'
+import {
+  Smartphone,
+  CheckCircle,
+  XCircle,
+  RefreshCw,
+  Link2,
   Unlink,
   Send
 } from 'lucide-react'
 
 export default function ConexaoPage() {
-  const { user } = useAuthStore()
-  const { status, isModalOpen, openModal, closeModal } = useWAHASessionStore()
-  const { mutate, isPending } = useCreateWAHASession()
-  
+  const { status, isModalOpen, openModal, closeModal, setStatus, reset } = useWAHASessionStore()
+  const queryClient = useQueryClient()
+  const [isStarting, setIsStarting] = useState(false)
+  const [isLoadingStatus, setIsLoadingStatus] = useState(true)
+
+  useEffect(() => {
+    const loadStatus = async () => {
+      try {
+        const data = await api.session.status()
+        setStatus(data.status)
+      } catch {
+        setStatus('STOPPED')
+      } finally {
+        setIsLoadingStatus(false)
+      }
+    }
+    loadStatus()
+  }, [setStatus])
+
+  useEffect(() => {
+    if (status === 'STARTING' || status === 'SCAN_QR_CODE') {
+      openModal()
+    } else {
+      closeModal()
+    }
+  }, [status, openModal, closeModal])
+
   const [testPhone, setTestPhone] = useState('')
   const [testMessage, setTestMessage] = useState('')
   const [isSendingTest, setIsSendingTest] = useState(false)
@@ -30,18 +53,26 @@ export default function ConexaoPage() {
 
   const isConnected = status === 'WORKING'
 
-  const handleConnect = () => {
-    if (user?.id) {
-      const sessionName = `user_${user.id.replace(/-/g, '_').substring(0, 40)}`
-      mutate(sessionName)
+  const handleConnect = async () => {
+    setIsStarting(true)
+    try {
+      await api.session.start()
+      setStatus('STARTING')
+      openModal()
+      queryClient.invalidateQueries({ queryKey: ['session'] })
+    } catch (err) {
+      setMessage({ type: 'error', text: err instanceof Error ? err.message : 'Erro ao conectar' })
+    } finally {
+      setIsStarting(false)
     }
   }
 
   const handleDisconnect = async () => {
     try {
-      const { api } = await import('@/lib/api')
-      await api.waha.disconnect()
+      await api.session.logout()
+      reset()
       setMessage({ type: 'success', text: 'WhatsApp desconectado!' })
+      queryClient.invalidateQueries({ queryKey: ['session'] })
     } catch (err) {
       setMessage({ type: 'error', text: err instanceof Error ? err.message : 'Erro ao desconectar' })
     }
@@ -50,12 +81,11 @@ export default function ConexaoPage() {
   const handleSendTest = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!testPhone) return
-    
+
     setIsSendingTest(true)
     setMessage(null)
     try {
-      const { messagesApi } = await import('@/lib/api')
-      await messagesApi.sendTest(testPhone, testMessage || 'Teste ZapReminder!')
+      await api.messages.sendTest(testPhone, testMessage || 'Teste ZapReminder!')
       setMessage({ type: 'success', text: 'Mensagem enviada!' })
       setTestPhone('')
       setTestMessage('')
@@ -80,8 +110,8 @@ export default function ConexaoPage() {
     <div className="flex flex-col gap-6">
       {message && (
         <div className={`border rounded-lg p-4 flex items-center gap-2 ${
-          message.type === 'success' 
-            ? 'bg-green-50 border-green-200 text-green-700' 
+          message.type === 'success'
+            ? 'bg-green-50 border-green-200 text-green-700'
             : 'bg-red-50 border-red-200 text-red-700'
         }`}>
           <span>{message.text}</span>
@@ -93,7 +123,6 @@ export default function ConexaoPage() {
         <p className="text-slate-500">Gerencie a conexão do seu WhatsApp.</p>
       </div>
 
-      {/* Card de Status */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -102,10 +131,10 @@ export default function ConexaoPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {isPending ? (
+          {isStarting || isLoadingStatus ? (
             <div className="flex items-center justify-center py-8">
               <RefreshCw className="w-6 h-6 animate-spin text-green-500" />
-              <span className="ml-2">Iniciando...</span>
+              <span className="ml-2">Carregando...</span>
             </div>
           ) : isConnected ? (
             <div className="flex flex-col gap-4">
@@ -139,7 +168,6 @@ export default function ConexaoPage() {
         </CardContent>
       </Card>
 
-      {/* Card de Teste */}
       {isConnected && (
         <Card>
           <CardHeader>
@@ -168,8 +196,8 @@ export default function ConexaoPage() {
                   className="mt-1"
                 />
               </div>
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 disabled={!testPhone || isSendingTest}
                 className="w-full bg-green-500 hover:bg-green-600"
               >
