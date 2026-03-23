@@ -19,7 +19,7 @@ import {
 } from 'lucide-react'
 
 export default function ConexaoPage() {
-  const { status, isModalOpen, openModal, closeModal, setStatus, reset } = useWAHASessionStore()
+  const { status, isModalOpen, openModal, closeModal, setStatus, setSessionName, reset } = useWAHASessionStore()
   const queryClient = useQueryClient()
   const [isStarting, setIsStarting] = useState(false)
   const [isLoadingStatus, setIsLoadingStatus] = useState(true)
@@ -29,6 +29,9 @@ export default function ConexaoPage() {
       try {
         const data = await api.session.status()
         setStatus(data.status)
+        if (data.sessionName) {
+          setSessionName(data.sessionName)
+        }
       } catch {
         setStatus('STOPPED')
       } finally {
@@ -36,7 +39,7 @@ export default function ConexaoPage() {
       }
     }
     loadStatus()
-  }, [setStatus])
+  }, [setStatus, setSessionName])
 
   useEffect(() => {
     if (status === 'STARTING' || status === 'SCAN_QR_CODE') {
@@ -56,7 +59,10 @@ export default function ConexaoPage() {
   const handleConnect = async () => {
     setIsStarting(true)
     try {
-      await api.session.start()
+      const result = await api.session.start()
+      if (result.sessionName) {
+        setSessionName(result.sessionName)
+      }
       setStatus('STARTING')
       openModal()
       queryClient.invalidateQueries({ queryKey: ['session'] })

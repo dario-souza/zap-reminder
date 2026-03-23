@@ -49,6 +49,13 @@ export function useMessages() {
     },
   })
 
+  const deleteAllScheduledMutation = useMutation({
+    mutationFn: api.messages.deleteAllScheduled,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: messageKeys.list() })
+    },
+  })
+
   return {
     messages: (query.data ?? []) as Message[],
     schedule: createMutation.mutate,
@@ -63,12 +70,15 @@ export function useMessages() {
     deleteAsync: deleteMutation.mutateAsync,
     deleteAllRecurring: deleteAllRecurringMutation.mutate,
     deleteAllRecurringAsync: deleteAllRecurringMutation.mutateAsync,
+    deleteAllScheduled: deleteAllScheduledMutation.mutate,
+    deleteAllScheduledAsync: deleteAllScheduledMutation.mutateAsync,
     isScheduling: createMutation.isPending,
     isSending: createMutation.isPending,
     isCancelling: cancelMutation.isPending,
     isSendingNow: sendNowMutation.isPending,
     isDeleting: deleteMutation.isPending,
     isDeletingAllRecurring: deleteAllRecurringMutation.isPending,
+    isDeletingAllScheduled: deleteAllScheduledMutation.isPending,
     ...query,
   }
 }
@@ -183,6 +193,13 @@ export function useScheduledMessages() {
     },
   })
 
+  const deleteAllScheduledMutation = useMutation({
+    mutationFn: api.messages.deleteAllScheduled,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: messageKeys.list() })
+    },
+  })
+
   return {
     scheduledMessages,
     recurringMessages,
@@ -205,8 +222,11 @@ export function useScheduledMessages() {
     sendNowAsync: sendNowMutation.mutateAsync,
     cancel: cancelMutation.mutate,
     cancelAsync: cancelMutation.mutateAsync,
+    deleteAllScheduled: deleteAllScheduledMutation.mutate,
+    deleteAllScheduledAsync: deleteAllScheduledMutation.mutateAsync,
     isSending: sendNowMutation.isPending,
     isCancelling: cancelMutation.isPending,
+    isDeletingAllScheduled: deleteAllScheduledMutation.isPending,
   }
 }
 

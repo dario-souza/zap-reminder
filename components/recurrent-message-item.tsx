@@ -8,6 +8,16 @@ import { getChatId } from '@/types'
 import { Send, Trash2, Calendar, Repeat } from 'lucide-react'
 import { formatRecurrenceLabel } from '@/lib/recurrence'
 
+const WEEKDAY_SHORT: Record<number, string> = {
+  0: 'Domingo',
+  1: 'Segunda',
+  2: 'Terça',
+  3: 'Quarta',
+  4: 'Quinta',
+  5: 'Sexta',
+  6: 'Sábado',
+}
+
 interface RecurrentMessageItemProps {
   message: Message
   contact: Contact | null
@@ -65,12 +75,13 @@ export function RecurrentMessageItem({
             </p>
             <div className="flex items-center gap-2 mt-2 text-sm text-slate-500">
               <Repeat className="w-4 h-4" />
-              {message.recurrence_cron ? formatRecurrenceLabel(message.recurrence_cron) : (
-                <>
-                  {message.recurrence_type === 'WEEKLY' ? 'Semanal' : 'Mensal'}
-                  {message.recurrence_hour !== undefined && ` às ${String(message.recurrence_hour).padStart(2, '0')}:${String(message.recurrence_minute ?? 0).padStart(2, '0')}`}
-                </>
-              )}
+              {message.recurrence_cron
+                ? formatRecurrenceLabel(message.recurrence_cron)
+                : message.recurrence_type === 'WEEKLY' && message.recurrence_day_of_week !== undefined
+                ? `Toda ${WEEKDAY_SHORT[message.recurrence_day_of_week] ?? `Dia ${message.recurrence_day_of_week}`} às ${String(message.recurrence_hour ?? 9).padStart(2, '0')}:${String(message.recurrence_minute ?? 0).padStart(2, '0')}`
+                : message.recurrence_type === 'MONTHLY' && message.recurrence_day_of_month !== undefined
+                ? `Todo dia ${message.recurrence_day_of_month} às ${String(message.recurrence_hour ?? 9).padStart(2, '0')}:${String(message.recurrence_minute ?? 0).padStart(2, '0')}`
+                : 'Recorrente'}
             </div>
           </div>
           <div className="flex items-center gap-2 ml-4">

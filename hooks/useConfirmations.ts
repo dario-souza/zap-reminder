@@ -37,6 +37,20 @@ export function useConfirmations() {
     },
   })
 
+  const deleteAllMutation = useMutation({
+    mutationFn: api.confirmations.deleteAll,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: confirmationKeys.list() })
+    },
+  })
+
+  const sendNowMutation = useMutation({
+    mutationFn: api.confirmations.sendNow,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: confirmationKeys.list() })
+    },
+  })
+
   return {
     confirmations: (query.data ?? []) as Confirmation[],
     create: createMutation.mutate,
@@ -45,9 +59,15 @@ export function useConfirmations() {
     updateAsync: updateMutation.mutateAsync,
     remove: deleteMutation.mutate,
     removeAsync: deleteMutation.mutateAsync,
+    deleteAll: deleteAllMutation.mutate,
+    deleteAllAsync: deleteAllMutation.mutateAsync,
+    sendNow: sendNowMutation.mutate,
+    sendNowAsync: sendNowMutation.mutateAsync,
     isCreating: createMutation.isPending,
     isUpdating: updateMutation.isPending,
     isRemoving: deleteMutation.isPending,
+    isDeletingAll: deleteAllMutation.isPending,
+    isSendingNow: sendNowMutation.isPending,
     ...query,
   }
 }

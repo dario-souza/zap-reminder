@@ -207,7 +207,9 @@ export default function AgendamentosPage() {
     loading, 
     refetch, 
     sendNow, 
-    cancel 
+    cancel,
+    deleteAllScheduled,
+    isDeletingAllScheduled,
   } = useScheduledMessages()
   
   const { contacts, isLoading: contactsLoading } = useContacts()
@@ -295,6 +297,16 @@ export default function AgendamentosPage() {
       setError(err instanceof Error ? err.message : 'Erro ao cancelar')
     }
   }, [cancel])
+
+  const handleDeleteAll = useCallback(async () => {
+    if (!confirm('Tem certeza que deseja deletar TODAS as mensagens agendadas?')) return
+    try {
+      await deleteAllScheduled()
+      await refetch()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao deletar todas')
+    }
+  }, [deleteAllScheduled, refetch])
 
   const handleCreate = useCallback(async () => {
     if (selectedContacts.length === 0 || !message || !scheduledAt) return
@@ -522,6 +534,20 @@ export default function AgendamentosPage() {
             </div>
           ) : (
             <div className="space-y-4">
+              {filteredMessages.length > 0 && (
+                <div className="flex justify-end">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-red-500 border-red-200 hover:bg-red-50 hover:text-red-600"
+                    onClick={handleDeleteAll}
+                    disabled={isDeletingAllScheduled}
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    {isDeletingAllScheduled ? 'Deletando...' : 'Deletar Todas'}
+                  </Button>
+                </div>
+              )}
               {filteredMessages.map((msg) => (
                 <MessageCard
                   key={msg.id}

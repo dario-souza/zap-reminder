@@ -56,6 +56,15 @@ export const api = {
       return res.json()
     },
 
+    deleteAllScheduled: async () => {
+      const res = await fetch(`${BASE_URL}/messages/scheduled/all`, {
+        method: 'DELETE',
+        headers: await getAuthHeaders(),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      return res.json()
+    },
+
     sendNow: async (id: string) => {
       const res = await fetch(`${BASE_URL}/messages/${id}/send`, {
         method: 'POST',
@@ -265,12 +274,29 @@ export const api = {
       return res.json()
     },
 
+    sendNow: async (id: string) => {
+      const res = await fetch(`${BASE_URL}/confirmations/${id}/send`, {
+        method: 'POST',
+        headers: await getAuthHeaders(),
+      })
+      if (!res.ok) throw new Error(await res.text())
+    },
+
     remove: async (id: string) => {
       const res = await fetch(`${BASE_URL}/confirmations/${id}`, {
         method: 'DELETE',
         headers: await getAuthHeaders(),
       })
       if (!res.ok) throw new Error(await res.text())
+    },
+
+    deleteAll: async () => {
+      const res = await fetch(`${BASE_URL}/confirmations/all`, {
+        method: 'DELETE',
+        headers: await getAuthHeaders(),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      return res.json()
     },
   },
 

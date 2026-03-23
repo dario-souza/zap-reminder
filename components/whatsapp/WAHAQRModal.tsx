@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
 import { useWAHASessionStore } from '../../stores/wahaSessionStore'
+import { useWAHASessionStream } from '../../hooks/useWAHASessionStream'
 import { api } from '../../lib/api'
 
 const STATUS_LABEL: Record<string, string> = {
@@ -13,81 +14,29 @@ const STATUS_LABEL: Record<string, string> = {
 }
 
 export function WAHAQRModal() {
-  const { isModalOpen, status, qrCode, setQrCode, setStatus, closeModal } =
+  const { isModalOpen, status, qrCode, sessionName, closeModal } =
     useWAHASessionStore()
 
-  const retryCountRef = useRef(0)
-  const maxRetries = 3
+  useWAHASessionStream(sessionName)
 
   useEffect(() => {
     if (!isModalOpen) return
 
-    retryCountRef.current = 0
-
-    const pollStatus = async () => {
+    const checkStatus = async () => {
       try {
         const data = await api.session.status()
-
-        if (data.status) {
-          setStatus(data.status as any)
-
-          if (data.status === 'WORKING') {
-            retryCountRef.current = 0
-            closeModal()
-            return
-          }
-
-          if (data.status === 'FAILED') {
-            retryCountRef.current++
-            console.log(`[WAHA] Tentativa de reconexão: ${retryCountRef.current}/${maxRetries}`)
-
-            if (retryCountRef.current < maxRetries) {
-              setStatus('STARTING')
-              await api.session.start()
-            } else {
-              retryCountRef.current = 0
-              closeModal()
-              alert('Não foi possível conectar. Tente novamente mais tarde.')
-            }
-            return
-          }
-        }
-
-        if (data.qr) {
-          setQrCode(data.qr)
-        }
-      } catch (err) {
-        console.error('Erro ao buscar status:', err)
-      }
-    }
-
-    const pollQR = async () => {
-      try {
-        const data = await api.session.qrCode()
-        if (data.qr) {
-          setQrCode(data.qr)
-        }
-        if (data.connected) {
-          setStatus('WORKING')
+        if (data.status === 'WORKING') {
           closeModal()
         }
-      } catch (err) {
-        console.error('Erro ao buscar QR:', err)
+      } catch {
+        // ignorado — SSE cuida do status
       }
     }
 
-    pollStatus()
-    pollQR()
-
-    const interval = setInterval(() => {
-      pollStatus()
-      if (status === 'SCAN_QR_CODE') {
-        pollQR()
-      }
-    }, 3000)
-
+    checkStatus()
+    const interval = setInterval(checkStatus, 10000)
     return () => clearInterval(interval)
-  }, [isModalOpen, status, setStatus, setQrCode, closeModal])
+  }, [isModalOpen, closeModal])
 
   if (!isModalOpen) return null
 
