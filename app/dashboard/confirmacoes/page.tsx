@@ -83,7 +83,7 @@ function ConfirmationCard({
           <span className="text-sm text-slate-500">{confirmation.contact_phone}</span>
         </div>
 
-        <div className="flex items-center gap-2 mb-2">
+        <div className="flex items-center gap-2 mb-2 flex-wrap">
           <ConfirmationStatusBadge status={confirmation.status} />
           <MessageStatusBadge status={confirmation.message_status} />
         </div>
