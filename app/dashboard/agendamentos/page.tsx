@@ -15,6 +15,14 @@ import {
   X,
   Filter
 } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { useScheduledMessages, useContacts, useMessages } from '@/hooks'
 import type { Message, Contact } from '@/types'
 import { getChatId } from '@/types'
@@ -225,6 +233,7 @@ export default function AgendamentosPage() {
   const [scheduledAt, setScheduledAt] = useState('')
   const [isCreating, setIsCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false)
 
   const addContact = useCallback((contact: Contact) => {
     if (!selectedContacts.find((c) => c.id === contact.id)) {
@@ -299,15 +308,19 @@ export default function AgendamentosPage() {
     }
   }, [cancel])
 
-  const handleDeleteAll = useCallback(async () => {
-    if (!confirm('Tem certeza que deseja deletar TODAS as mensagens agendadas?')) return
+  const handleDeleteAll = useCallback(() => {
+    setShowDeleteAllDialog(true)
+  }, [])
+
+  const handleConfirmDeleteAll = useCallback(async () => {
     try {
       await deleteAllScheduled()
       await refetch()
+      setShowDeleteAllDialog(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao deletar todas')
     }
-  }, [deleteAllScheduled, refetch])
+  }, [deleteAllScheduled, refetch, isDeletingAllScheduled])
 
   const handleCreate = useCallback(async () => {
     if (selectedContacts.length === 0 || !message || !scheduledAt) return
@@ -562,6 +575,29 @@ export default function AgendamentosPage() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={showDeleteAllDialog} onOpenChange={setShowDeleteAllDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar exclusão</DialogTitle>
+            <DialogDescription>
+              Tem certeza que deseja deletar todas as mensagens agendadas? Esta ação não pode ser desfeita.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeleteAllDialog(false)}>
+              Cancelar
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleConfirmDeleteAll}
+              disabled={isDeletingAllScheduled}
+            >
+              {isDeletingAllScheduled ? 'Deletando...' : 'Deletar Todas'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

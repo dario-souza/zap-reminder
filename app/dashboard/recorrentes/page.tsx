@@ -16,6 +16,14 @@ import {
   Repeat
 } from 'lucide-react'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { useScheduledMessages, useContacts, useMessages } from '@/hooks'
 import type { Message, Contact } from '@/types'
 import { getChatId } from '@/types'
@@ -52,6 +60,7 @@ export default function RecorrentesPage() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'ativas' | 'criar'>('ativas')
+  const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false)
 
   const filteredContacts = useMemo(() => {
     if (!contactSearchTerm) return contacts
@@ -135,12 +144,15 @@ export default function RecorrentesPage() {
     }
   }
 
-  const handleDeleteAll = async () => {
-    if (!confirm('Tem certeza que deseja deletar TODAS as mensagens recorrentes?')) return
-    
+  const handleDeleteAll = () => {
+    setShowDeleteAllDialog(true)
+  }
+
+  const handleConfirmDeleteAll = async () => {
     try {
       await deleteAllRecurring()
       await refetch()
+      setShowDeleteAllDialog(false)
       setSuccess('Todas as mensagens recorrentes foram deletadas!')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao deletar todas')
@@ -418,6 +430,29 @@ export default function RecorrentesPage() {
           />
         </TabsContent>
       </Tabs>
+
+      <Dialog open={showDeleteAllDialog} onOpenChange={setShowDeleteAllDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar exclusão</DialogTitle>
+            <DialogDescription>
+              Tem certeza que deseja deletar todas as mensagens recorrentes? Esta ação não pode ser desfeita.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeleteAllDialog(false)}>
+              Cancelar
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleConfirmDeleteAll}
+              disabled={isDeletingAllRecurring}
+            >
+              {isDeletingAllRecurring ? 'Deletando...' : 'Deletar Todas'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
