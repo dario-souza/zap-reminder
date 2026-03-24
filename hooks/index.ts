@@ -20,3 +20,4 @@ export {
   useLogoutSession,
 } from './useSession'
 export { useConfirmationRealtime } from './useConfirmationRealtime'
+export { useMessagesRealtime } from './useMessagesRealtime'
