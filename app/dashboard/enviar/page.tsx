@@ -14,7 +14,7 @@ import { getChatId } from '@/types'
 export default function EnviarPage() {
   const router = useRouter()
   const { contacts, isLoading: contactsLoading } = useContacts()
-  const { send, sendNow } = useMessages()
+  const { sendAsync, sendNow } = useMessages()
   const { mutate: sendBulk, isPending: isSendingBulk } = useSendBulk()
   
   const [searchTerm, setSearchTerm] = useState('')
@@ -65,7 +65,7 @@ export default function EnviarPage() {
       const contactIds = selectedContacts.map(c => c.id)
 
       if (selectedContacts.length === 1) {
-        await send({
+        await sendAsync({
           chatId: getChatId(selectedContacts[0].phone),
           body: message,
           contactId: selectedContacts[0].id,
@@ -82,11 +82,12 @@ export default function EnviarPage() {
           )
         })
       }
-      setSuccess(`${selectedContacts.length} mensagem(s) enviada(s) com sucesso!`)
+      setSuccess(`${selectedContacts.length} mensagem(ns) enviada(s) com sucesso!`)
       setMessage('')
       setSelectedContacts([])
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao enviar mensagem')
+    } catch (err: any) {
+      const errorMessage = err?.message || err?.error || 'Erro ao enviar mensagem'
+      setError(errorMessage)
     } finally {
       setIsSending(false)
     }
