@@ -1,15 +1,18 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import { useAuthStore } from '../stores/authStore'
-import { messageKeys } from './useMessages'
+import { confirmationKeys } from './useConfirmations'
 
 export function useConfirmationRealtime() {
   const queryClient = useQueryClient()
   const user = useAuthStore((s) => s.user)
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
 
   useEffect(() => {
     if (!user) return
+
+    console.log('[Realtime] Configurando canal de confirmações para usuário:', user.id)
 
     const channel = supabase
       .channel('confirmations-realtime')
@@ -21,14 +24,26 @@ export function useConfirmationRealtime() {
           table: 'confirmations',
           filter: `user_id=eq.${user.id}`,
         },
-        () => {
-          queryClient.invalidateQueries({ queryKey: messageKeys.list() })
+        (payload) => {
+          console.log('[Realtime] Confirmação atualizada:', payload)
+          queryClient.invalidateQueries({ queryKey: confirmationKeys.list() })
         }
       )
-      .subscribe()
+      .subscribe((status, err) => {
+        console.log('[Realtime] Status do canal:', status, err)
+        if (err) {
+          console.error('[Realtime] Erro no canal:', err)
+        }
+      })
+
+    channelRef.current = channel
 
     return () => {
-      supabase.removeChannel(channel)
+      console.log('[Realtime] Removendo canal de confirmações')
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current)
+        channelRef.current = null
+      }
     }
   }, [user, queryClient])
 }

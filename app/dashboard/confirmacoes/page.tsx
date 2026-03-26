@@ -20,7 +20,6 @@ import {
 } from 'lucide-react'
 import { useConfirmations, useContacts } from '@/hooks'
 import { useAuthStore } from '@/stores/authStore'
-import { supabase } from '@/lib/supabase'
 import type { Confirmation, Contact, ConfirmationMessageStatus, ConfirmationStatus } from '@/types'
 
 function MessageStatusBadge({ status }: { status: ConfirmationMessageStatus }) {
@@ -164,29 +163,6 @@ export default function ConfirmacoesPage() {
   const [isCreating, setIsCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (!user) return
-    const channel = supabase
-      .channel('confirmations-realtime')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'confirmations',
-          filter: `user_id=eq.${user.id}`,
-        },
-        () => {
-          refetch()
-        },
-      )
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [user, refetch])
 
   const filteredContacts = useMemo(() => {
     if (!contactSearchTerm) return []
