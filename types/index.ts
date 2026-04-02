@@ -130,6 +130,8 @@ export interface Confirmation {
   status: ConfirmationStatus
   message_status: ConfirmationMessageStatus
   message_content?: string
+  confirmation_response_message?: string
+  cancellation_response_message?: string
   response?: string
   responded_at?: string
   wa_message_id?: string
@@ -145,6 +147,8 @@ export interface CreateConfirmationDto {
   eventDate: string
   sendAt?: string
   messageContent?: string
+  confirmationResponseMessage?: string
+  cancellationResponseMessage?: string
 }
 
 export interface MessageStats {

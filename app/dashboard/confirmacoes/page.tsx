@@ -160,6 +160,8 @@ export default function ConfirmacoesPage() {
   const [eventDate, setEventDate] = useState('')
   const [sendDate, setSendDate] = useState('')
   const [messageContent, setMessageContent] = useState('')
+  const [confirmationResponseMessage, setConfirmationResponseMessage] = useState('')
+  const [cancellationResponseMessage, setCancellationResponseMessage] = useState('')
   const [isCreating, setIsCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
@@ -217,6 +219,8 @@ export default function ConfirmacoesPage() {
         eventDate: new Date(eventDate).toISOString(),
         sendAt: sendDate ? new Date(sendDate).toISOString() : undefined,
         messageContent: messageContent || undefined,
+        confirmationResponseMessage: confirmationResponseMessage || undefined,
+        cancellationResponseMessage: cancellationResponseMessage || undefined,
       })
       setSuccess('Confirmação criada com sucesso!')
       setShowForm(false)
@@ -226,6 +230,8 @@ export default function ConfirmacoesPage() {
       setEventDate('')
       setSendDate('')
       setMessageContent('')
+      setConfirmationResponseMessage('')
+      setCancellationResponseMessage('')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao criar confirmação')
     } finally {
@@ -446,6 +452,37 @@ export default function ConfirmacoesPage() {
                 Variáveis: <code className="bg-slate-100 dark:bg-slate-700 px-1 rounded">{'{{contact_name}}'}</code>{' '}
                 <code className="bg-slate-100 dark:bg-slate-700 px-1 rounded">{'{{event_date}}'}</code>
               </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                  Mensagem ao confirmar
+                </label>
+                <Textarea
+                  className="mt-1 min-h-[80px]"
+                  value={confirmationResponseMessage}
+                  onChange={(e) => setConfirmationResponseMessage(e.target.value)}
+                  placeholder="Obrigado por confirmar! {{contact_name}}, vemos você no evento!"
+                />
+                <p className="text-xs text-slate-500 mt-1">
+                  Enviada quando o contato responder &quot;Sim&quot;
+                </p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                  Mensagem ao recusar
+                </label>
+                <Textarea
+                  className="mt-1 min-h-[80px]"
+                  value={cancellationResponseMessage}
+                  onChange={(e) => setCancellationResponseMessage(e.target.value)}
+                  placeholder="Sentimos muito que não possa comparecer. {{contact_name}}, esperamos você na próxima!"
+                />
+                <p className="text-xs text-slate-500 mt-1">
+                  Enviada quando o contato responder &quot;Não&quot;
+                </p>
+              </div>
             </div>
 
             <div className="flex gap-2">
