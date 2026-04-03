@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { devtools } from 'zustand/middleware'
 
 export type WahaSessionStatus =
   | 'STOPPED'
@@ -21,17 +22,22 @@ interface WAHASessionState {
   reset: () => void
 }
 
-export const useWAHASessionStore = create<WAHASessionState>((set) => ({
-  sessionName: null,
-  status: 'STOPPED',
-  qrCode: null,
-  isModalOpen: false,
+export const useWAHASessionStore = create<WAHASessionState>()(
+  devtools(
+    (set) => ({
+      sessionName: null,
+      status: 'STOPPED',
+      qrCode: null,
+      isModalOpen: false,
 
-  setSessionName: (name) => set({ sessionName: name }),
-  setStatus: (status) => set({ status }),
-  setQrCode: (qrCode) => set({ qrCode }),
-  openModal: () => set({ isModalOpen: true }),
-  closeModal: () => set({ isModalOpen: false, qrCode: null }),
-  reset: () =>
-    set({ sessionName: null, status: 'STOPPED', qrCode: null, isModalOpen: false }),
-}))
+      setSessionName: (name) => set({ sessionName: name }),
+      setStatus: (status) => set({ status }),
+      setQrCode: (qrCode) => set({ qrCode }),
+      openModal: () => set({ isModalOpen: true }),
+      closeModal: () => set({ isModalOpen: false, qrCode: null }),
+      reset: () =>
+        set({ sessionName: null, status: 'STOPPED', qrCode: null, isModalOpen: false }),
+    }),
+    { name: 'wahaSession' }
+  )
+)

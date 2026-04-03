@@ -1,5 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
+import { useAuthStore } from '../stores/authStore'
 import { useWAHASessionStore } from '../stores/wahaSessionStore'
 
 const MAX_RETRIES = 5
@@ -7,9 +8,11 @@ const BASE_RETRY_DELAY = 1000
 
 export function useWAHASessionStream(sessionName: string | null) {
   const { setQrCode, setStatus, closeModal } = useWAHASessionStore()
+  const user = useAuthStore((s) => s.user)
   const esRef = useRef<EventSource | null>(null)
   const retryCountRef = useRef(0)
   const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const tokenRef = useRef<string | null>(null)
 
   const cleanup = useCallback(() => {
     if (esRef.current) {
@@ -22,17 +25,27 @@ export function useWAHASessionStream(sessionName: string | null) {
     }
   }, [])
 
+  useEffect(() => {
+    if (!user) return
+
+    supabase.auth.getSession().then(({ data }) => {
+      tokenRef.current = data.session?.access_token ?? null
+    })
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
+      tokenRef.current = session?.access_token ?? null
+    })
+
+    return () => subscription.unsubscribe()
+  }, [user])
+
   const connect = useCallback(async () => {
-    if (!sessionName) return
+    if (!sessionName || !tokenRef.current) return
 
     cleanup()
 
-    const { data } = await supabase.auth.getSession()
-    const token = data.session?.access_token
-    if (!token) return
-
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
-    const url = `${apiUrl}/sessions/stream?sessionName=${encodeURIComponent(sessionName)}&token=${encodeURIComponent(token)}`
+    const url = `${apiUrl}/sessions/stream?sessionName=${encodeURIComponent(sessionName)}&token=${encodeURIComponent(tokenRef.current!)}`
     
     const es = new EventSource(url)
     esRef.current = es
@@ -84,7 +97,7 @@ export function useWAHASessionStream(sessionName: string | null) {
   }, [sessionName, setQrCode, setStatus, closeModal, cleanup])
 
   useEffect(() => {
-    if (sessionName) {
+    if (sessionName && tokenRef.current) {
       retryCountRef.current = 0
       connect()
     }

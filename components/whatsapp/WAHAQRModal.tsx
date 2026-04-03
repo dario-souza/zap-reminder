@@ -27,13 +27,17 @@ export function WAHAQRModal() {
       return
     }
 
+    let interval: NodeJS.Timeout | null = null
+
     const checkStatus = async () => {
       try {
         const data = await api.session.status()
         if (data.status === 'WORKING') {
           closeModal()
+          if (interval) clearInterval(interval)
         } else if (data.status === 'FAILED') {
           setErrorMessage('Falha na conexão. Tente novamente.')
+          if (interval) clearInterval(interval)
         }
       } catch (err) {
         // ignorado — SSE cuida do status
@@ -41,8 +45,10 @@ export function WAHAQRModal() {
     }
 
     checkStatus()
-    const interval = setInterval(checkStatus, 5000)
-    return () => clearInterval(interval)
+    interval = setInterval(checkStatus, 5000)
+    return () => {
+      if (interval) clearInterval(interval)
+    }
   }, [isModalOpen, closeModal])
 
   const handleCancel = () => {

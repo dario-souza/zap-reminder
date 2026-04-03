@@ -19,5 +19,4 @@ export {
   useStopSession,
   useLogoutSession,
 } from './useSession'
-export { useConfirmationRealtime } from './useConfirmationRealtime'
-export { useMessagesRealtime } from './useMessagesRealtime'
+export { useMessagesRealtime, useConfirmationRealtime } from './useRealtime'
