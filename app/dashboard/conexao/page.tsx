@@ -22,6 +22,7 @@ export default function ConexaoPage() {
   const { status, isModalOpen, openModal, closeModal, setStatus, setSessionName, reset } = useWAHASessionStore()
   const queryClient = useQueryClient()
   const [isStarting, setIsStarting] = useState(false)
+  const [isDisconnecting, setIsDisconnecting] = useState(false)
   const [isLoadingStatus, setIsLoadingStatus] = useState(true)
 
   useEffect(() => {
@@ -74,6 +75,7 @@ export default function ConexaoPage() {
   }
 
   const handleDisconnect = async () => {
+    setIsDisconnecting(true)
     try {
       await api.session.logout()
       reset()
@@ -81,6 +83,8 @@ export default function ConexaoPage() {
       queryClient.invalidateQueries({ queryKey: ['session'] })
     } catch (err) {
       setMessage({ type: 'error', text: err instanceof Error ? err.message : 'Erro ao desconectar' })
+    } finally {
+      setIsDisconnecting(false)
     }
   }
 
@@ -151,9 +155,18 @@ export default function ConexaoPage() {
                   <p className="text-green-700">{getStatusLabel()}</p>
                 </div>
               </div>
-              <Button variant="outline" onClick={handleDisconnect} className="w-full">
-                <Unlink className="w-4 h-4 mr-2" />
-                Desconectar
+              <Button variant="outline" onClick={handleDisconnect} disabled={isDisconnecting} className="w-full">
+                {isDisconnecting ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    Desconectando...
+                  </>
+                ) : (
+                  <>
+                    <Unlink className="w-4 h-4 mr-2" />
+                    Desconectar
+                  </>
+                )}
               </Button>
             </div>
           ) : (
