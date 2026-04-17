@@ -1,6 +1,22 @@
 import { supabase } from './supabase'
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+const REQUEST_TIMEOUT = 15000
+
+async function fetchWithTimeout(url: string, options: RequestInit = {}): Promise<Response> {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT)
+  
+  try {
+    const res = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    })
+    return res
+  } finally {
+    clearTimeout(timeout)
+  }
+}
 
 async function getAuthHeaders(): Promise<HeadersInit> {
   const { data } = await supabase.auth.getSession()
@@ -14,7 +30,7 @@ async function getAuthHeaders(): Promise<HeadersInit> {
 export const api = {
   messages: {
     list: async () => {
-      const res = await fetch(`${BASE_URL}/messages`, {
+      const res = await fetchWithTimeout(`${BASE_URL}/messages`, {
         headers: await getAuthHeaders(),
       })
       if (!res.ok) throw new Error(await res.text())

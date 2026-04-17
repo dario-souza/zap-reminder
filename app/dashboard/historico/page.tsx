@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -31,21 +31,23 @@ interface HistoryItem {
 }
 
 export default function HistoricoPage() {
-  const { messages, refetch } = useMessages()
+  const { messages } = useMessages()
   const { contacts } = useContacts()
   const { confirmations } = useConfirmations()
-
-  useEffect(() => {
-    refetch()
-  }, [refetch])
 
   const [searchTerm, setSearchTerm] = useState('')
   const [typeFilter, setTypeFilter] = useState<FilterType>('all')
 
+  const contactsMap = useMemo(() => {
+    const map = new Map<string, Contact>()
+    contacts.forEach((c) => map.set(c.phone, c))
+    return map
+  }, [contacts])
+
   const getContact = (phone: string | undefined) => {
     if (!phone) return { name: 'Desconhecido', phone: '-' }
     const cleanPhone = phone.replace('@c.us', '').replace('@g.us', '')
-    const contact = contacts.find((c: Contact) => c.phone === cleanPhone)
+    const contact = contactsMap.get(cleanPhone)
     return contact || { name: 'Desconhecido', phone: cleanPhone }
   }
 

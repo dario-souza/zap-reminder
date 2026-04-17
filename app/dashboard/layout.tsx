@@ -4,7 +4,6 @@ import { ReactNode, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { Sidebar } from '@/components/dashboard/sidebar'
-import { useMessagesRealtime, useConfirmationRealtime } from '@/hooks'
 
 interface DashboardLayoutProps {
   children: ReactNode
@@ -12,8 +11,6 @@ interface DashboardLayoutProps {
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const router = useRouter()
-  useMessagesRealtime()
-  useConfirmationRealtime()
   const [user, setUser] = useState<{
     name?: string | null
     email?: string | null

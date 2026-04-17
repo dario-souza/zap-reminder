@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuthStore } from '../stores/authStore'
 import { queryClient } from '@/lib/queryClient'
@@ -7,9 +7,20 @@ import { confirmationKeys } from './useConfirmations'
 
 let messagesChannel: ReturnType<typeof supabase.channel> | null = null
 let confirmationsChannel: ReturnType<typeof supabase.channel> | null = null
+let messagesDebounceTimer: NodeJS.Timeout | null = null
+let confirmationsDebounceTimer: NodeJS.Timeout | null = null
 
 export function useMessagesRealtime() {
   const user = useAuthStore((s) => s.user)
+
+  const invalidateMessages = useCallback(() => {
+    if (messagesDebounceTimer) {
+      clearTimeout(messagesDebounceTimer)
+    }
+    messagesDebounceTimer = setTimeout(() => {
+      queryClient.invalidateQueries({ queryKey: messageKeys.list() })
+    }, 500)
+  }, [])
 
   useEffect(() => {
     if (!user) return
@@ -30,7 +41,7 @@ export function useMessagesRealtime() {
           filter: `user_id=eq.${user.id}`,
         },
         () => {
-          queryClient.invalidateQueries({ queryKey: messageKeys.list() })
+          invalidateMessages()
         }
       )
       .subscribe()
@@ -40,12 +51,24 @@ export function useMessagesRealtime() {
         supabase.removeChannel(messagesChannel)
         messagesChannel = null
       }
+      if (messagesDebounceTimer) {
+        clearTimeout(messagesDebounceTimer)
+      }
     }
-  }, [user])
+  }, [user, invalidateMessages])
 }
 
 export function useConfirmationRealtime() {
   const user = useAuthStore((s) => s.user)
+
+  const invalidateConfirmations = useCallback(() => {
+    if (confirmationsDebounceTimer) {
+      clearTimeout(confirmationsDebounceTimer)
+    }
+    confirmationsDebounceTimer = setTimeout(() => {
+      queryClient.invalidateQueries({ queryKey: confirmationKeys.list() })
+    }, 500)
+  }, [])
 
   useEffect(() => {
     if (!user) return
@@ -66,7 +89,7 @@ export function useConfirmationRealtime() {
           filter: `user_id=eq.${user.id}`,
         },
         () => {
-          queryClient.invalidateQueries({ queryKey: confirmationKeys.list() })
+          invalidateConfirmations()
         }
       )
       .subscribe()
@@ -76,6 +99,9 @@ export function useConfirmationRealtime() {
         supabase.removeChannel(confirmationsChannel)
         confirmationsChannel = null
       }
+      if (confirmationsDebounceTimer) {
+        clearTimeout(confirmationsDebounceTimer)
+      }
     }
-  }, [user])
+  }, [user, invalidateConfirmations])
 }

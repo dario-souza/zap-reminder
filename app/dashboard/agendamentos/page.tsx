@@ -242,6 +242,12 @@ export default function AgendamentosPage() {
     setContactSearchTerm('')
   }, [selectedContacts])
 
+  const contactsMap = useMemo(() => {
+    const map = new Map<string, Contact>()
+    contacts.forEach((c) => map.set(c.phone, c))
+    return map
+  }, [contacts])
+
   const removeContact = useCallback((contactId: string) => {
     setSelectedContacts(selectedContacts.filter((c) => c.id !== contactId))
   }, [selectedContacts])
@@ -250,41 +256,35 @@ export default function AgendamentosPage() {
     let messages = [...scheduledMessages, ...sentScheduledMessages, ...cancelledScheduledMessages]
     
     if (statusFilter !== 'all') {
-      messages = messages.filter((msg) => {
-        if (statusFilter === 'scheduled') {
-          return msg.status === 'scheduled'
-        }
-        if (statusFilter === 'pending') {
-          return msg.status === 'pending'
-        }
-        if (statusFilter === 'sent') {
-          return msg.status === 'sent'
-        }
-        if (statusFilter === 'cancelled') {
-          return msg.status === 'cancelled'
-        }
-        return true
-      })
+      if (statusFilter === 'scheduled') {
+        messages = messages.filter((msg) => msg.status === 'scheduled')
+      } else if (statusFilter === 'pending') {
+        messages = messages.filter((msg) => msg.status === 'pending')
+      } else if (statusFilter === 'sent') {
+        messages = messages.filter((msg) => msg.status === 'sent')
+      } else if (statusFilter === 'cancelled') {
+        messages = messages.filter((msg) => msg.status === 'cancelled')
+      }
     }
     
     if (!searchTerm) return messages
     
     const term = searchTerm.toLowerCase()
     return messages.filter((msg) => {
-      const contact = contacts.find((c: Contact) => c.phone === msg.phone?.replace('@c.us', ''))
+      const contact = contactsMap.get(msg.phone?.replace('@c.us', '') || '')
       return (
         msg.content?.toLowerCase().includes(term) ||
         contact?.name.toLowerCase().includes(term) ||
         contact?.phone.includes(term)
       )
     })
-  }, [scheduledMessages, sentScheduledMessages, cancelledScheduledMessages, statusFilter, searchTerm, contacts])
+  }, [scheduledMessages, sentScheduledMessages, cancelledScheduledMessages, statusFilter, searchTerm, contactsMap])
 
   const getContact = useCallback((phone: string | undefined) => {
     if (!phone) return null
     const cleanPhone = phone.replace('@c.us', '').replace('@g.us', '')
-    return contacts.find((c: Contact) => c.phone === cleanPhone)
-  }, [contacts])
+    return contactsMap.get(cleanPhone)
+  }, [contactsMap])
 
   const handleSendNow = useCallback(async (msg: Message) => {
     try {
@@ -294,11 +294,10 @@ export default function AgendamentosPage() {
         contactId: msg.contact_id,
         type: 'instant',
       })
-      await refetch()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao enviar')
     }
-  }, [send, refetch])
+  }, [send])
 
   const handleCancel = useCallback(async (msg: Message) => {
     try {
@@ -315,7 +314,6 @@ export default function AgendamentosPage() {
   const handleConfirmDeleteAll = useCallback(async () => {
     try {
       await deleteAllScheduled()
-      await refetch()
       setShowDeleteAllDialog(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao deletar todas')
@@ -342,13 +340,12 @@ export default function AgendamentosPage() {
       setScheduledAt('')
       setSelectedContacts([])
       setShowForm(false)
-      await refetch()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao criar agendamento')
     } finally {
       setIsCreating(false)
     }
-  }, [selectedContacts, message, scheduledAt, schedule, refetch])
+  }, [selectedContacts, message, scheduledAt, schedule])
 
   if (loading || contactsLoading) {
     return (

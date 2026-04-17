@@ -13,6 +13,8 @@ export function useConfirmations() {
   const query = useQuery({
     queryKey: confirmationKeys.list(),
     queryFn: api.confirmations.list,
+    staleTime: 1000 * 60 * 2,
+    gcTime: 1000 * 60 * 5,
   })
 
   const createMutation = useMutation({

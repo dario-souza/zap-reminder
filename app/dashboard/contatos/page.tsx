@@ -217,7 +217,6 @@ export default function ContatosPage() {
       
       const result = await contactsApi.importCSV(csvContent)
       setImportResult({ success: true, message: `${result.success} contatos importados com sucesso!` })
-      await refetch()
     } catch (err) {
       console.error('Erro ao importar:', err)
       setImportResult({ success: false, message: 'Erro ao importar contatos' })

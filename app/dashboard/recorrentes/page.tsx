@@ -73,20 +73,17 @@ export default function RecorrentesPage() {
   }, [contacts, contactSearchTerm])
 
   const activeRecurringMessages = useMemo(() => {
-    // Mostra todas as mensagens recorrentes que não estão canceladas
-    return recurringMessages.filter((msg) =>
+    return recurringMessages.filter((msg: Message) =>
       msg.status !== 'cancelled'
     )
   }, [recurringMessages])
 
   const filteredMessages = useMemo(() => {
-    // Mostra todas as mensagens recorrentes ativas (que têm recurrence_type != NONE)
     let messagesToShow = activeRecurringMessages;
     
-    // Aplica filtro de busca somente se houver termo
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
-      messagesToShow = messagesToShow.filter((msg) => {
+      messagesToShow = messagesToShow.filter((msg: Message) => {
         const contact = contacts.find(c => c.phone === msg.phone?.replace('@c.us', ''));
         return (
           msg.content?.toLowerCase().includes(term) ||
@@ -119,7 +116,6 @@ export default function RecorrentesPage() {
   const handleSendNow = async (msg: Message) => {
     try {
       await sendNow(msg.id)
-      await refetch()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao enviar')
     }
@@ -128,7 +124,6 @@ export default function RecorrentesPage() {
   const handleCancel = async (msg: Message) => {
     try {
       await cancel(msg.id)
-      await refetch()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao cancelar')
     }
@@ -137,7 +132,6 @@ export default function RecorrentesPage() {
   const handleDelete = async (msg: Message) => {
     try {
       await deleteMessage(msg.id)
-      await refetch()
       setSuccess('Mensagem recorrente deletada com sucesso!')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao deletar')
@@ -151,7 +145,6 @@ export default function RecorrentesPage() {
   const handleConfirmDeleteAll = async () => {
     try {
       await deleteAllRecurring()
-      await refetch()
       setShowDeleteAllDialog(false)
       setSuccess('Todas as mensagens recorrentes foram deletadas!')
     } catch (err) {
@@ -195,7 +188,6 @@ export default function RecorrentesPage() {
       setRecurrenceMinute(0)
       setSelectedContacts([])
       setSuccess(`${selectedContacts.length} mensagem(s) recorrente(s) criada(s) com sucesso!`)
-      await refetch()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao criar agendamento recorrente')
     } finally {
@@ -374,7 +366,7 @@ export default function RecorrentesPage() {
                       </Button>
                     </div>
                   )}
-                  {filteredMessages.map((msg) => {
+                  {filteredMessages.map((msg: Message) => {
                     const contact = getContact(msg.phone) ?? null
                     return (
                       <RecurrentMessageItem

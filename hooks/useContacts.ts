@@ -13,6 +13,8 @@ export function useContacts() {
   const query = useQuery({
     queryKey: contactKeys.list(),
     queryFn: api.contacts.list,
+    staleTime: 1000 * 60 * 2,
+    gcTime: 1000 * 60 * 5,
   })
 
   const createMutation = useMutation({

@@ -13,6 +13,8 @@ export function useTemplates() {
   const query = useQuery({
     queryKey: templateKeys.list(),
     queryFn: api.templates.list,
+    staleTime: 1000 * 60 * 2,
+    gcTime: 1000 * 60 * 5,
   })
 
   const createMutation = useMutation({
