@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { X } from 'lucide-react'
-import { useConfirmations } from '@/hooks'
+import { useConfirmations, useConfirmationRealtime } from '@/hooks'
 import { useAuthStore } from '@/stores/authStore'
 import type { Confirmation } from '@/types'
 import type { DateFilter } from '@/lib/dateFilter'
@@ -18,6 +18,8 @@ import {
 } from '@/components/confirmations'
 
 export default function ConfirmacoesPage() {
+  useConfirmationRealtime()
+  
   const user = useAuthStore((s) => s.user)
   const { confirmations, isLoading, create, removeAsync, sendNowAsync, isSendingNow, deleteAllAsync } = useConfirmations()
 

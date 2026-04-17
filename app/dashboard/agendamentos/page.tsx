@@ -23,7 +23,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { useScheduledMessages, useContacts, useMessages } from '@/hooks'
+import { useScheduledMessages, useContacts, useMessages, useMessagesRealtime } from '@/hooks'
 import type { Message, Contact } from '@/types'
 import { getChatId } from '@/types'
 
@@ -206,6 +206,8 @@ function MessageCard({
 }
 
 export default function AgendamentosPage() {
+  useMessagesRealtime()
+  
   const { 
     scheduledMessages, 
     sentScheduledMessages, 

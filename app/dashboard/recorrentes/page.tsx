@@ -24,13 +24,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { useScheduledMessages, useContacts, useMessages } from '@/hooks'
+import { useScheduledMessages, useContacts, useMessages, useMessagesRealtime } from '@/hooks'
 import type { Message, Contact } from '@/types'
 import { getChatId } from '@/types'
 import { RecurrentMessageItem } from '@/components/recurrent-message-item'
 import { RecurrentMessageForm } from '@/components/recurrent-message-form'
 
 export default function RecorrentesPage() {
+  useMessagesRealtime()
+  
   const { 
     recurringMessages, 
     sentRecurringMessages, 

@@ -13,7 +13,7 @@ import {
   Users,
   Clock,
 } from 'lucide-react'
-import { useMessages, useContacts, useConfirmations } from '@/hooks'
+import { useMessages, useContacts, useConfirmations, useMessagesRealtime } from '@/hooks'
 import type { Message, Contact, Confirmation } from '@/types'
 import { getChatId } from '@/types'
 
@@ -31,6 +31,8 @@ interface HistoryItem {
 }
 
 export default function HistoricoPage() {
+  useMessagesRealtime()
+  
   const { messages } = useMessages()
   const { contacts } = useContacts()
   const { confirmations } = useConfirmations()
