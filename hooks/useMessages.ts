@@ -297,3 +297,53 @@ export function useSendBulk() {
     },
   })
 }
+
+export const historyKeys = {
+  all: ['history'] as const,
+  list: (page: number, limit: number, type?: string, search?: string) => 
+    [...historyKeys.all, 'list', page, limit, type, search] as const,
+  count: () => [...historyKeys.all, 'count'] as const,
+}
+
+export function useHistory(page = 1, limit = 20, type?: string, search?: string) {
+  return useQuery({
+    queryKey: historyKeys.list(page, limit, type, search),
+    queryFn: () => api.messages.history(page, limit, type, search),
+    staleTime: 1000 * 30,
+  })
+}
+
+export function useHistoryCount() {
+  return useQuery({
+    queryKey: historyKeys.count(),
+    queryFn: () => api.messages.historyCount(),
+    staleTime: 1000 * 30,
+  })
+}
+
+export function useClearHistory() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: api.messages.clearHistory,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: historyKeys.all })
+    },
+  })
+}
+
+export function useTotalSent() {
+  return useQuery({
+    queryKey: ['totalSent'],
+    queryFn: () => api.messages.totalSent(),
+    staleTime: 1000 * 30,
+  })
+}
+
+export function useMessageCounts() {
+  return useQuery({
+    queryKey: ['messageCounts'],
+    queryFn: () => api.messages.counts(),
+    staleTime: 1000 * 30,
+  })
+}

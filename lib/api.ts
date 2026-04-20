@@ -108,6 +108,51 @@ export const api = {
       if (!res.ok) throw new Error(await res.text())
       return res.json()
     },
+
+    // History
+    history: async (page = 1, limit = 20, type?: string, search?: string) => {
+      const params = new URLSearchParams({ page: String(page), limit: String(limit) })
+      if (type && type !== 'all') params.append('type', type)
+      if (search) params.append('search', search)
+      
+      const res = await fetchWithTimeout(`${BASE_URL}/messages/history?${params}`, {
+        headers: await getAuthHeaders(),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      return res.json()
+    },
+
+    historyCount: async () => {
+      const res = await fetch(`${BASE_URL}/messages/history/count`, {
+        headers: await getAuthHeaders(),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      return res.json()
+    },
+
+    clearHistory: async () => {
+      const res = await fetch(`${BASE_URL}/messages/history/clear`, {
+        method: 'DELETE',
+        headers: await getAuthHeaders(),
+      })
+      if (!res.ok) throw new Error(await res.text())
+    },
+
+    totalSent: async () => {
+      const res = await fetch(`${BASE_URL}/messages/stats/total-sent`, {
+        headers: await getAuthHeaders(),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      return res.json()
+    },
+
+    counts: async () => {
+      const res = await fetch(`${BASE_URL}/messages/stats/counts`, {
+        headers: await getAuthHeaders(),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      return res.json()
+    },
   },
 
   contacts: {

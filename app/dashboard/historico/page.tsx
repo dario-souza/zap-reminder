@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -10,130 +10,65 @@ import {
   Send,
   Calendar,
   Repeat,
-  Users,
-  Clock,
+  Trash2,
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
 } from 'lucide-react'
-import { useMessages, useContacts, useConfirmations, useMessagesRealtime } from '@/hooks'
-import type { Message, Contact, Confirmation } from '@/types'
-import { getChatId } from '@/types'
+import { useHistory, useHistoryCount, useClearHistory } from '@/hooks'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
 
-type MessageType = 'normal' | 'scheduled' | 'recurring' | 'confirmation'
+type MessageType = 'normal' | 'scheduled' | 'recurring'
 type FilterType = 'all' | MessageType
 
-interface HistoryItem {
-  id: string
-  type: MessageType
-  contactName: string
-  contactPhone: string
-  content: string
-  date: string
-  status?: string
-}
+const ITEMS_PER_PAGE = 10
 
 export default function HistoricoPage() {
-  useMessagesRealtime()
-  
-  const { messages } = useMessages()
-  const { contacts } = useContacts()
-  const { confirmations } = useConfirmations()
-
+  const [page, setPage] = useState(1)
   const [searchTerm, setSearchTerm] = useState('')
   const [typeFilter, setTypeFilter] = useState<FilterType>('all')
 
-  const contactsMap = useMemo(() => {
-    const map = new Map<string, Contact>()
-    contacts.forEach((c) => map.set(c.phone, c))
-    return map
-  }, [contacts])
+  const { data: historyData, isLoading, isFetching } = useHistory(
+    page,
+    ITEMS_PER_PAGE,
+    typeFilter === 'all' ? undefined : typeFilter,
+    searchTerm || undefined
+  )
 
-  const getContact = (phone: string | undefined) => {
-    if (!phone) return { name: 'Desconhecido', phone: '-' }
-    const cleanPhone = phone.replace('@c.us', '').replace('@g.us', '')
-    const contact = contactsMap.get(cleanPhone)
-    return contact || { name: 'Desconhecido', phone: cleanPhone }
+  const { data: countData } = useHistoryCount()
+  const clearHistoryMutation = useClearHistory()
+
+  const historyItems = historyData?.data ?? []
+  const totalItems = historyData?.total ?? 0
+  const totalPages = historyData?.totalPages ?? 1
+  const currentCount = countData?.count ?? 0
+  const maxItems = countData?.limit ?? 500
+
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value)
+    setPage(1)
   }
 
-  const historyItems: HistoryItem[] = useMemo(() => {
-    const items: HistoryItem[] = []
+  const handleTypeChange = (value: FilterType) => {
+    setTypeFilter(value)
+    setPage(1)
+  }
 
-    messages.forEach((msg: Message) => {
-      if (msg.status !== 'sent') return
-      
-      const contact = getContact(msg.phone)
+  const handleClearHistory = () => {
+    clearHistoryMutation.mutate()
+  }
 
-      let type: MessageType = 'normal'
-      if (msg.recurrence_type && msg.recurrence_type !== 'NONE') {
-        type = 'recurring'
-      } else if (msg.scheduled_at) {
-        type = 'scheduled'
-      }
-
-      items.push({
-        id: msg.id,
-        type,
-        contactName: contact.name,
-        contactPhone: contact.phone,
-        content: msg.content || msg.body || '',
-        date: msg.created_at,
-        status: msg.status,
-      })
-    })
-
-    confirmations.forEach((conf: Confirmation) => {
-      items.push({
-        id: conf.id,
-        type: 'confirmation',
-        contactName: conf.contact_name,
-        contactPhone: conf.contact_phone,
-        content: conf.message_content || '',
-        date: conf.created_at,
-        status: conf.status,
-      })
-    })
-
-    return items.sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-    )
-  }, [messages, contacts, confirmations])
-
-  const filteredItems = useMemo(() => {
-    let items = historyItems
-
-    if (typeFilter !== 'all') {
-      items = items.filter((item) => item.type === typeFilter)
-    }
-
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase()
-      items = items.filter(
-        (item) =>
-          item.content.toLowerCase().includes(term) ||
-          item.contactName.toLowerCase().includes(term) ||
-          item.contactPhone.includes(term),
-      )
-    }
-
-    return items
-  }, [historyItems, searchTerm, typeFilter])
-
-  const stats = useMemo(() => {
-    const normal = messages.filter(
-      (m: Message) =>
-        !m.scheduled_at && (!m.recurrence_type || m.recurrence_type === 'NONE'),
-    ).length
-
-    const scheduled = messages.filter((m: Message) => m.scheduled_at).length
-
-    const recurring = messages.filter(
-      (m: Message) => m.recurrence_type && m.recurrence_type !== 'NONE',
-    ).length
-
-    const confirmation = confirmations.length
-
-    return { normal, scheduled, recurring, confirmation }
-  }, [messages, confirmations])
-
-  const formatDateTime = (dateStr?: string) => {
+  const formatDateTime = (dateStr?: string | null) => {
     if (!dateStr) return '-'
     return new Intl.DateTimeFormat('pt-BR', {
       day: '2-digit',
@@ -144,7 +79,7 @@ export default function HistoricoPage() {
     }).format(new Date(dateStr))
   }
 
-  const getTypeIcon = (type: MessageType) => {
+  const getTypeIcon = (type: string) => {
     switch (type) {
       case 'normal':
         return <Send className="w-4 h-4" />
@@ -152,25 +87,25 @@ export default function HistoricoPage() {
         return <Calendar className="w-4 h-4" />
       case 'recurring':
         return <Repeat className="w-4 h-4" />
-      case 'confirmation':
-        return <Users className="w-4 h-4" />
+      default:
+        return <Send className="w-4 h-4" />
     }
   }
 
-  const getTypeLabel = (type: MessageType) => {
+  const getTypeLabel = (type: string) => {
     switch (type) {
       case 'normal':
-        return 'Normal'
+        return 'Instantânea'
       case 'scheduled':
         return 'Agendada'
       case 'recurring':
         return 'Recorrente'
-      case 'confirmation':
-        return 'Confirmação'
+      default:
+        return type
     }
   }
 
-  const getTypeColor = (type: MessageType) => {
+  const getTypeColor = (type: string) => {
     switch (type) {
       case 'normal':
         return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
@@ -178,78 +113,49 @@ export default function HistoricoPage() {
         return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
       case 'recurring':
         return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
-      case 'confirmation':
-        return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+      default:
+        return 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
     }
   }
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">
-          Histórico
-        </h1>
-        <p className="text-slate-500 dark:text-slate-400">
-          Histórico completo de todos os tipos de envio.
-        </p>
-      </div>
+      <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">
+            Histórico
+          </h1>
+          <p className="text-slate-500 dark:text-slate-400">
+            Histórico de mensagens enviadas ({currentCount}/{maxItems})
+          </p>
+        </div>
 
-      <div className="grid grid-cols-4 gap-4">
-        <Card className="border border-slate-200 dark:border-slate-700">
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
-              <Send className="w-6 h-6 text-blue-500" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-                {stats.normal}
-              </p>
-              <p className="text-sm text-slate-500">Normal</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border border-slate-200 dark:border-slate-700">
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="w-12 h-12 bg-yellow-100 dark:bg-yellow-900/30 rounded-full flex items-center justify-center">
-              <Calendar className="w-6 h-6 text-yellow-500" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-                {stats.scheduled}
-              </p>
-              <p className="text-sm text-slate-500">Agendados</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border border-slate-200 dark:border-slate-700">
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center">
-              <Repeat className="w-6 h-6 text-purple-500" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-                {stats.recurring}
-              </p>
-              <p className="text-sm text-slate-500">Recorrentes</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border border-slate-200 dark:border-slate-700">
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
-              <Users className="w-6 h-6 text-green-500" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-                {stats.confirmation}
-              </p>
-              <p className="text-sm text-slate-500">Confirmações</p>
-            </div>
-          </CardContent>
-        </Card>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="outline" className="gap-2 text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700">
+              <Trash2 className="w-4 h-4" />
+              Limpar Histórico
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Limpar Histórico</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tem certeza que deseja limpar todo o histórico? Esta ação não pode ser desfeita.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleClearHistory}
+                className="bg-red-600 hover:bg-red-700"
+                disabled={clearHistoryMutation.isPending}
+              >
+                {clearHistoryMutation.isPending ? 'Limpando...' : 'Sim, limpar'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
 
       <Card className="border border-slate-200 dark:border-slate-700">
@@ -260,20 +166,19 @@ export default function HistoricoPage() {
               <Input
                 placeholder="Buscar no histórico..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => handleSearchChange(e.target.value)}
                 className="pl-10"
               />
             </div>
             <select
               value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value as FilterType)}
+              onChange={(e) => handleTypeChange(e.target.value as FilterType)}
               className="px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-transparent text-sm"
             >
               <option value="all">Todos os tipos</option>
               <option value="normal">Normal</option>
               <option value="scheduled">Agendado</option>
               <option value="recurring">Recorrente</option>
-              <option value="confirmation">Confirmação</option>
             </select>
           </div>
         </CardContent>
@@ -283,11 +188,16 @@ export default function HistoricoPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <History className="w-5 h-5" />
-            Todos os Envios ({filteredItems.length})
+            Envios ({totalItems})
+            {isFetching && <Loader2 className="w-4 h-4 animate-spin" />}
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {filteredItems.length === 0 ? (
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
+            </div>
+          ) : historyItems.length === 0 ? (
             <div className="text-center py-12">
               <History className="w-12 h-12 mx-auto mb-4 text-slate-300 dark:text-slate-600" />
               <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100 mb-2">
@@ -297,7 +207,7 @@ export default function HistoricoPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              {filteredItems.map((item) => (
+              {historyItems.map((item: any) => (
                 <div
                   key={item.id}
                   className="flex items-start justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700"
@@ -305,10 +215,7 @@ export default function HistoricoPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <span className="font-medium text-slate-900 dark:text-slate-100">
-                        {item.contactName}
-                      </span>
-                      <span className="text-sm text-slate-500">
-                        ({item.contactPhone})
+                        {item.phone}
                       </span>
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium flex items-center gap-1 ${getTypeColor(item.type)}`}>
                         {getTypeIcon(item.type)}
@@ -316,17 +223,49 @@ export default function HistoricoPage() {
                       </span>
                     </div>
                     <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-2">
-                      {item.content}
+                      {item.content || '-'}
                     </p>
                     <div className="flex items-center gap-4 mt-2 text-sm text-slate-500">
                       <div className="flex items-center gap-1">
-                        <Clock className="w-4 h-4" />
-                        {formatDateTime(item.date)}
+                        <Calendar className="w-4 h-4" />
+                        <span className="text-xs">Criado: {formatDateTime(item.created_at)}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Send className="w-4 h-4" />
+                        <span className="text-xs">Enviado: {formatDateTime(item.sent_at)}</span>
                       </div>
                     </div>
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-200 dark:border-slate-700">
+              <p className="text-sm text-slate-500">
+                Página {page} de {totalPages}
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  Anterior
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                >
+                  Próxima
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>

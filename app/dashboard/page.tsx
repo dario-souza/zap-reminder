@@ -1,6 +1,6 @@
 'use client'
 
-import { useContacts, useMessages, useScheduledMessages, useConfirmations, useWhatsApp } from '@/hooks'
+import { useContacts, useConfirmations, useWhatsApp, useMessageCounts } from '@/hooks'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'
@@ -9,20 +9,20 @@ import {
   Users, 
   MessageCircle, 
   Send, 
-  Calendar, 
+  Zap,
   CheckCircle, 
   XCircle,
   Smartphone,
-  ArrowRight
+  ArrowRight,
+  Clock
 } from 'lucide-react'
 import Link from 'next/link'
 
 export default function DashboardPage() {
   const { contacts, isLoading: contactsLoading } = useContacts()
-  const { messages } = useMessages()
-  const { totalScheduled, totalRecurring } = useScheduledMessages()
   const { confirmations } = useConfirmations()
   const { status: whatsappStatus, isConnected: whatsappConnected, loading: waLoading, refetch } = useWhatsApp()
+  const { data: countsData } = useMessageCounts()
   const [userName, setUserName] = useState<string>('')
 
   useEffect(() => {
@@ -37,8 +37,6 @@ export default function DashboardPage() {
     getUserName()
   }, [])
 
-  const sentMessages = messages.filter(m => m.status === 'sent').length
-  const pendingConfirmations = confirmations.filter(c => c.status === 'pending').length
   const confirmedConfirmations = confirmations.filter(c => c.status === 'confirmed').length
 
   const stats = [
@@ -51,24 +49,32 @@ export default function DashboardPage() {
       href: '/dashboard/enviar'
     },
     {
-      title: 'Enviadas',
-      value: sentMessages,
+      title: 'Total Enviado',
+      value: countsData?.totalSent ?? 0,
       description: 'Mensagens enviadas',
       icon: MessageCircle,
       color: 'green',
       href: '/dashboard/historico'
     },
     {
+      title: 'Instantâneas',
+      value: countsData?.instantSent ?? 0,
+      description: 'Mensagens instantâneas',
+      icon: Zap,
+      color: 'cyan',
+      href: '/dashboard/historico'
+    },
+    {
       title: 'Agendadas',
-      value: totalScheduled,
+      value: countsData?.scheduledSent ?? 0,
       description: 'Mensagens agendadas',
-      icon: Calendar,
+      icon: Clock,
       color: 'purple',
       href: '/dashboard/agendamentos'
     },
     {
       title: 'Recorrentes',
-      value: totalRecurring,
+      value: countsData?.recurringSent ?? 0,
       description: 'Mensagens recorrentes',
       icon: Send,
       color: 'orange',
@@ -90,6 +96,8 @@ export default function DashboardPage() {
         return 'bg-blue-100 dark:bg-blue-900/30 text-blue-500'
       case 'green':
         return 'bg-green-100 dark:bg-green-900/30 text-green-500'
+      case 'cyan':
+        return 'bg-cyan-100 dark:bg-cyan-900/30 text-cyan-500'
       case 'purple':
         return 'bg-purple-100 dark:bg-purple-900/30 text-purple-500'
       case 'yellow':
@@ -161,7 +169,7 @@ export default function DashboardPage() {
       </Card>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {stats.map((stat) => (
           <Link key={stat.title} href={stat.href}>
             <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
@@ -190,7 +198,7 @@ export default function DashboardPage() {
             <Link href="/dashboard/enviar" className="block">
               <Button variant="outline" className="w-full justify-between">
                 <span className="flex items-center gap-2">
-                  <Send className="w-4 h-4 text-green-500" />
+                  <Zap className="w-4 h-4 text-cyan-500" />
                   Enviar Mensagem
                 </span>
                 <ArrowRight className="w-4 h-4" />
@@ -199,7 +207,7 @@ export default function DashboardPage() {
             <Link href="/dashboard/agendamentos" className="block">
               <Button variant="outline" className="w-full justify-between">
                 <span className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-blue-500" />
+                  <Clock className="w-4 h-4 text-purple-500" />
                   Agendar Mensagem
                 </span>
                 <ArrowRight className="w-4 h-4" />
@@ -224,16 +232,20 @@ export default function DashboardPage() {
           <CardContent>
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-slate-500">Enviadas</span>
-                <span className="font-medium">{sentMessages}</span>
+                <span className="text-sm text-slate-500">Total Enviado</span>
+                <span className="font-medium">{countsData?.totalSent ?? 0}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-slate-500">Agendadas</span>
-                <span className="font-medium">{totalScheduled}</span>
+                <span className="text-sm text-slate-500">Instantâneas</span>
+                <span className="font-medium">{countsData?.instantSent ?? 0}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-slate-500">Confirmadas</span>
-                <span className="font-medium">{pendingConfirmations}</span>
+                <span className="text-sm text-slate-500">Recorrentes</span>
+                <span className="font-medium">{countsData?.recurringSent ?? 0}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-slate-500">Confirmações</span>
+                <span className="font-medium">{confirmedConfirmations}</span>
               </div>
             </div>
           </CardContent>

@@ -8,6 +8,11 @@ export {
   useCancelMessage,
   useSendNowMessage,
   useSendTestMessage,
+  useHistory,
+  useHistoryCount,
+  useClearHistory,
+  useTotalSent,
+  useMessageCounts,
 } from './useMessages'
 export { useTemplates } from './useTemplates'
 export { useConfirmations } from './useConfirmations'
