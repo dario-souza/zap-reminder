@@ -218,6 +218,7 @@ export default function AgendamentosPage() {
     loading, 
     refetch, 
     sendNow, 
+    cancelAsync,
     cancel,
     deleteAllScheduled,
     isDeletingAllScheduled,
@@ -303,11 +304,11 @@ export default function AgendamentosPage() {
 
   const handleCancel = useCallback(async (msg: Message) => {
     try {
-      await cancel(msg.id)
+      await cancelAsync(msg.id)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao cancelar')
     }
-  }, [cancel])
+  }, [cancelAsync])
 
   const handleDeleteAll = useCallback(() => {
     setShowDeleteAllDialog(true)

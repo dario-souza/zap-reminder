@@ -43,7 +43,9 @@ export default function RecorrentesPage() {
     loading, 
     refetch, 
     sendNow, 
-    cancel 
+    cancelAsync,
+    cancel,
+    isCancelling,
   } = useScheduledMessages()
   const { contacts, isLoading: contactsLoading } = useContacts()
   const { schedule, send, delete: deleteMessage, deleteAllRecurring, isDeleting, isDeletingAllRecurring } = useMessages()
@@ -125,7 +127,7 @@ export default function RecorrentesPage() {
 
   const handleCancel = async (msg: Message) => {
     try {
-      await cancel(msg.id)
+      await cancelAsync(msg.id)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao cancelar')
     }
