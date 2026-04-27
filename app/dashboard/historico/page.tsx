@@ -28,7 +28,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 
-type MessageType = 'normal' | 'scheduled' | 'recurring'
+type MessageType = 'normal' | 'scheduled' | 'recurring' | 'confirmation'
 type FilterType = 'all' | MessageType
 
 const ITEMS_PER_PAGE = 10
@@ -87,6 +87,8 @@ export default function HistoricoPage() {
         return <Calendar className="w-4 h-4" />
       case 'recurring':
         return <Repeat className="w-4 h-4" />
+      case 'confirmation':
+        return <Send className="w-4 h-4" />
       default:
         return <Send className="w-4 h-4" />
     }
@@ -100,6 +102,8 @@ export default function HistoricoPage() {
         return 'Agendada'
       case 'recurring':
         return 'Recorrente'
+      case 'confirmation':
+        return 'Confirmação'
       default:
         return type
     }
@@ -113,6 +117,8 @@ export default function HistoricoPage() {
         return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
       case 'recurring':
         return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
+      case 'confirmation':
+        return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
       default:
         return 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
     }
@@ -176,9 +182,10 @@ export default function HistoricoPage() {
               className="px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-transparent text-sm"
             >
               <option value="all">Todos os tipos</option>
-              <option value="normal">Normal</option>
-              <option value="scheduled">Agendado</option>
+              <option value="normal">Instantânea</option>
+              <option value="scheduled">Agendada</option>
               <option value="recurring">Recorrente</option>
+              <option value="confirmation">Confirmação</option>
             </select>
           </div>
         </CardContent>
