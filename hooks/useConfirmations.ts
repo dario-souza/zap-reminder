@@ -15,6 +15,7 @@ export function useConfirmations() {
     queryFn: api.confirmations.list,
     staleTime: 1000 * 60 * 2,
     gcTime: 1000 * 60 * 5,
+    refetchOnMount: true,
   })
 
   const createMutation = useMutation({
